@@ -321,6 +321,23 @@ repository secret).
   "Week N starts here". A pass published before this reads back by even slicing ONCE and
   is marked on its next publish (the editor's layout-only detection ignores markers and
   days the baseline never had).
+- **Health data is real or absent, never drawn (2026-09-15).** A tester in review called
+  Apple Health "fake": Connect appeared to do nothing, and the insights screen drew a ring
+  at 0/10,000, "—" vitals and a "take a walk" insight computed from zero steps before any
+  connection. The pipeline is real (`react-native-health` pod `RNAppleHealthKit` is in
+  build 33, HEALTHKIT is enabled on the App ID, `initHealthKit` is what shows Apple's
+  sheet) but nothing told anyone what the platform said. Now `HealthContext` exposes
+  `diagnostic` (module present, HealthKit available via `isAvailable`, last attempt in the
+  platform's words), `connectHealth()` resolves a boolean (permissions step says
+  "granted" only when true), `initHealthKit` has a 30 s timeout and a try/catch, every
+  failure is an alert with the real error text plus a Sentry event tagged `flow: health`
+  (breadcrumbs category `health`), and the dev-build instructions alert is gone.
+  Connected tech prints the diagnostic line under the card (mono, selectable) so a tester
+  can read it back. `health-insights` renders nothing that looks like data until
+  connected; connected-but-empty says so and where to fix it. Apple never reveals whether
+  READ access was granted, so the first read is the only honest signal (`countMetrics`).
+  Not device-verified from this machine: after any change here, tap Connect on a real
+  iPhone and read the diagnostic line.
 - **Going back means the screen you were on.** `lib/nav.ts goBackOr(router, fallback)` for
   every screen a push or deep link can open (notifications, the request screen); the Train
   tab remembers when a preview was opened from Home or a push (`arrivedFromElsewhereRef`) and

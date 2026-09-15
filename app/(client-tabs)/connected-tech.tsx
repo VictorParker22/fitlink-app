@@ -89,6 +89,7 @@ export default function ConnectedTechScreen() {
     isConnected: isHealthConnected,
     isLoading: isHealthLoading,
     healthData,
+    diagnostic,
     connectHealth,
     disconnectHealth,
   } = useHealth();
@@ -113,14 +114,27 @@ export default function ConnectedTechScreen() {
   }
 
   const healthStatusLine = !isHealthAvailable
-    ? `Requires the full app build. ${HEALTH_PLATFORM} is not available in this preview version of FitLink.`
+    ? `${HEALTH_PLATFORM} is not available on this device.`
     : isHealthConnected
       ? healthData?.lastSynced
         ? syncingMetrics.length > 0
           ? `Syncing ${syncingMetrics.join(', ')}. Last synced ${formatSyncTime(healthData.lastSynced)}.`
           : `Connected. No data found yet — last checked ${formatSyncTime(healthData.lastSynced)}.`
         : 'Connected. Waiting for the first sync.'
-      : `Sync steps, heart rate, calories and more from ${HEALTH_PLATFORM} into your Activity section.`;
+      : `Sync steps, heart rate, calories and more from ${HEALTH_PLATFORM} into your Activity section. ${Platform.OS === 'ios' ? 'Apple' : 'Android'} will ask which categories FitLink may read.`;
+
+  // What the platform said, readable off the screen. This is how a "Connect
+  // does nothing" report becomes a sentence we can act on.
+  const diagnosticLine = Platform.OS === 'ios'
+    ? [
+        `Health module: ${diagnostic.module ? 'present' : 'missing'}`,
+        `HealthKit: ${diagnostic.available === null ? 'not checked' : diagnostic.available ? 'available' : 'unavailable'}`,
+        diagnostic.lastAttempt ? `Last attempt: ${diagnostic.lastAttempt}` : null,
+      ].filter(Boolean).join(' · ')
+    : [
+        `Health Connect module: ${diagnostic.module ? 'present' : 'missing'}`,
+        diagnostic.lastAttempt ? `Last attempt: ${diagnostic.lastAttempt}` : null,
+      ].filter(Boolean).join(' · ');
 
   const handleConnectHealth = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -228,9 +242,9 @@ export default function ConnectedTechScreen() {
                 <Text style={[s.connectText, { color: CoachColors.accent }]}>Connecting…</Text>
               </View>
             ) : !isHealthAvailable ? (
-              <View style={s.unavailableBadge} accessibilityLabel={`${HEALTH_PLATFORM} requires the full app build`}>
-                <Ionicons name="construct-outline" size={18} color={CoachColors.textMuted} />
-                <Text style={s.unavailableText}>Full build only</Text>
+              <View style={s.unavailableBadge} accessibilityLabel={`${HEALTH_PLATFORM} is not available on this device`}>
+                <Ionicons name="remove-circle-outline" size={18} color={CoachColors.textMuted} />
+                <Text style={s.unavailableText}>Unavailable</Text>
               </View>
             ) : isHealthConnected ? (
               <TouchableOpacity
@@ -257,6 +271,7 @@ export default function ConnectedTechScreen() {
             )}
           </View>
           <Text style={s.deviceDesc}>{healthStatusLine}</Text>
+          <Text style={s.diagLine} selectable accessibilityLabel={`Status: ${diagnosticLine}`}>{diagnosticLine}</Text>
         </View>
 
         <View style={s.deviceDivider} />
@@ -552,6 +567,13 @@ const s = StyleSheet.create({
     color: CoachColors.textSecondary,
     marginTop: 14,
     lineHeight: 22.5,
+  },
+  diagLine: {
+    fontFamily: CoachFonts.mono,
+    fontSize: 11.5,
+    lineHeight: 16,
+    color: CoachColors.textFaint,
+    marginTop: 10,
   },
   deviceDivider: {
     height: StyleSheet.hairlineWidth,

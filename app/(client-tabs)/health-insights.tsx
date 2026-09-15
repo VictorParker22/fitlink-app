@@ -15,12 +15,15 @@ import { useReducedMotion } from '../../lib/useReducedMotion';
 
 // ─── Try to import health hook; gracefully handle missing module ────
 let useHealthHook: (() => any) | null = null;
+let countMetricsFn: ((s: HealthSnapshot) => number) | null = null;
 try {
   const mod = require('../../context/HealthContext');
   useHealthHook = mod.useHealth;
+  countMetricsFn = mod.countMetrics;
 } catch {
   useHealthHook = null;
 }
+const countMetrics = (s: HealthSnapshot) => (countMetricsFn ? countMetricsFn(s) : 0);
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -88,9 +91,13 @@ export default function HealthInsightsScreen() {
   const refreshHealth = healthCtx?.refreshHealth ?? (() => Promise.resolve());
   const syncToServer = healthCtx?.syncToServer ?? ((_id: string) => Promise.resolve());
 
-  // Use real data if connected, otherwise the empty snapshot
+  // Real data only. Before a connection the dashboard is NOT drawn: a ring at
+  // 0 / 10,000, "—" vitals and a "take a walk" insight computed from zero
+  // steps read as invented numbers (a tester called it fake, 2026-09-15).
   const data: HealthSnapshot = (isConnected && healthCtx?.healthData) ? healthCtx.healthData : EMPTY_DATA;
-  const isUsingMock = !isConnected || !healthCtx?.healthData;
+  const notConnected = !isConnected;
+  const awaitingFirstRead = isConnected && !healthCtx?.healthData;
+  const hasStepData = data.stepsToday > 0 || data.stepsWeekly.some((v) => v > 0);
 
   const [refreshing, setRefreshing] = useState(false);
 
@@ -147,15 +154,17 @@ export default function HealthInsightsScreen() {
   // Smart Insights
   const insights = useMemo(() => {
     const list: { icon: string; text: string; color: string }[] = [];
-    if (data.stepsToday >= 8000) list.push({ icon: 'flame', text: 'Great activity day! You\'re on track.', color: CoachColors.accent });
-    else if (data.stepsToday < 3000) list.push({ icon: 'walk', text: 'Try a short walk today to boost your energy.', color: CoachColors.warning });
+    // Step insights only when steps were actually read; "0 steps" before a
+    // sync is absence of data, not a sedentary day.
+    if (hasStepData && data.stepsToday >= 8000) list.push({ icon: 'flame', text: 'Great activity day! You\'re on track.', color: CoachColors.accent });
+    else if (hasStepData && data.stepsToday < 3000) list.push({ icon: 'walk', text: 'Try a short walk today to boost your energy.', color: CoachColors.warning });
     if (data.restingHeartRate !== null && data.restingHeartRate < 60) list.push({ icon: 'barbell', text: 'Athletic heart rate — excellent cardiovascular fitness!', color: CoachColors.accent });
     if (data.heartRateAvg24h !== null && data.heartRateAvg24h > 100) list.push({ icon: 'warning', text: 'Elevated average heart rate. Consider rest or consult a doctor.', color: CoachColors.danger });
     if (data.bloodOxygen !== null && data.bloodOxygen >= 95) list.push({ icon: 'checkmark-circle', text: 'Blood oxygen is healthy and within normal range.', color: CoachColors.accent });
     else if (data.bloodOxygen !== null && data.bloodOxygen < 95) list.push({ icon: 'warning', text: 'Blood oxygen is below normal. Monitor closely.', color: CoachColors.warning });
-    if (data.stepsToday >= 3000 && data.stepsToday < 8000) list.push({ icon: 'thumbs-up', text: 'Decent activity. A little more and you\'ll hit your goal!', color: CoachColors.textSecondary });
+    if (hasStepData && data.stepsToday >= 3000 && data.stepsToday < 8000) list.push({ icon: 'thumbs-up', text: 'Decent activity. A little more and you\'ll hit your goal!', color: CoachColors.textSecondary });
     return list.slice(0, 3);
-  }, [data]);
+  }, [data, hasStepData]);
 
   // Last synced text
   const syncedText = data.lastSynced
@@ -192,31 +201,36 @@ export default function HealthInsightsScreen() {
           </View>
         </View>
 
-        {/* Demo mode banner */}
-        {isUsingMock && (
-          <View style={styles.demoBanner}>
-            <Ionicons name="information-circle-outline" size={16} color={CoachColors.textMuted} />
-            <Text style={styles.demoBannerText}>Connect Apple Health or Health Connect to see your health data</Text>
-          </View>
-        )}
-
-        {/* ═══ CONNECTION BANNER ═══ */}
-        {!isConnected && (
+        {/* ═══ NOT CONNECTED: the ask, and nothing that looks like data ═══ */}
+        {notConnected && (
           <View style={styles.connectCard}>
             <View style={styles.connectIconWrap}>
               <Ionicons name="fitness" size={31} color={CoachColors.accent} />
             </View>
-            <Text style={styles.connectTitle}>Connect your health app</Text>
+            <Text style={styles.connectTitle}>Connect {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'}</Text>
             <Text style={styles.connectDesc}>
-              Sync steps, heart rate, and vitals from your device for real-time insights.
+              {Platform.OS === 'ios' ? 'Apple' : 'Android'} will ask which categories FitLink may read. Once connected, this screen shows your steps, heart rate, calories, blood oxygen, blood pressure and weight, read from your phone. Nothing is shown until then.
             </Text>
-            <TouchableOpacity style={styles.connectBtn} onPress={connectHealth} activeOpacity={0.8} accessibilityLabel="Connect to Apple Health" accessibilityRole="button">
+            <TouchableOpacity style={[styles.connectBtn, isLoading && { opacity: 0.6 }]} onPress={() => { connectHealth(); }} disabled={isLoading} activeOpacity={0.8} accessibilityLabel={`Connect to ${Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'}`} accessibilityRole="button">
               <Ionicons name="link" size={20} color={CoachColors.onAccent} />
-              <Text style={styles.connectBtnText}>Connect health</Text>
+              <Text style={styles.connectBtnText}>{isLoading ? 'Connecting…' : 'Connect health'}</Text>
             </TouchableOpacity>
           </View>
         )}
+        {awaitingFirstRead && (
+          <View style={styles.demoBanner}>
+            <Ionicons name="time-outline" size={16} color={CoachColors.textMuted} />
+            <Text style={styles.demoBannerText}>Connected. Reading from {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'}… pull down to refresh.</Text>
+          </View>
+        )}
+        {isConnected && healthCtx?.healthData && countMetrics(data) === 0 && (
+          <View style={styles.demoBanner}>
+            <Ionicons name="information-circle-outline" size={16} color={CoachColors.textMuted} />
+            <Text style={styles.demoBannerText}>Connected, but {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'} returned no data. Check that FitLink is allowed to read in {Platform.OS === 'ios' ? 'Settings → Health → Data Access & Devices' : 'Health Connect → App permissions'}, and that your watch or phone is recording.</Text>
+          </View>
+        )}
 
+        {isConnected && (<>
         {/* ═══ TODAY'S ACTIVITY ═══ */}
         <Text style={styles.sectionTitle}>Today's activity</Text>
         <View style={styles.activityCard}>
@@ -470,6 +484,7 @@ export default function HealthInsightsScreen() {
             ))}
           </>
         )}
+        </>)}
 
         {/* No bottom spacer here — the ScrollView's own contentContainerStyle
             already pads insets.bottom + 130, which clears the floating tab bar.

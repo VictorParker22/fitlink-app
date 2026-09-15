@@ -52,9 +52,10 @@ export default function AthletePermissionsScreen() {
       why: 'Steps, sleep and heart rate give your coach the full picture between sessions. Read-only, and only your coach sees it.',
       getState: async (): Promise<PermState> => (isConnected ? 'granted' : 'ask'),
       request: async (): Promise<PermState> => {
+        // "granted" only when the platform actually connected. It used to say
+        // granted after a denied sheet, a missing module, or a thrown error.
         try {
-          await connectHealth();
-          return 'granted';
+          return (await connectHealth()) ? 'granted' : 'ask';
         } catch {
           return 'ask';
         }

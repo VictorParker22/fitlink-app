@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef, type PropsWithChildren } from 'react';
 import { Platform, AppState, NativeModules } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 // Platform-aware wrapper: expo-secure-store has NO web implementation and
 // throws on first call. See ../lib/secureStore.ts.
 import * as SecureStore from '../lib/secureStore';
@@ -36,16 +37,45 @@ export interface HealthSnapshot {
   lastSynced: Date | null;
 }
 
+/**
+ * What the platform actually told us, in words a person can read off the
+ * screen and send us. On 2026-09-15 a tester reported "Connect does nothing
+ * and never asks permission" and there was no way to tell from here whether
+ * the native module was missing, HealthKit was unavailable, the sheet was
+ * dismissed, or the read came back empty. This line is that answer.
+ */
+export interface HealthDiagnostic {
+  /** The native bridge module is registered in this binary. */
+  module: boolean;
+  /** HealthKit reports health data is available on this device (null = not asked yet). */
+  available: boolean | null;
+  /** The last connect attempt: what happened, in the platform's words. */
+  lastAttempt: string | null;
+}
+
 interface HealthContextType {
   isHealthAvailable: boolean;
   isConnected: boolean;
   isLoading: boolean;
   healthData: HealthSnapshot | null;
-  connectHealth: () => Promise<void>;
+  diagnostic: HealthDiagnostic;
+  /** Resolves true only when the platform granted access and a first read ran. */
+  connectHealth: () => Promise<boolean>;
   refreshHealth: () => Promise<void>;
   disconnectHealth: () => void;
   syncToServer: (clientId: string) => Promise<void>;
 }
+
+const HEALTH_INIT_TIMEOUT_MS = 30_000;
+
+function healthBreadcrumb(message: string, data?: Record<string, string | number | boolean | null | undefined>) {
+  Sentry.addBreadcrumb({ category: 'health', message, level: 'info', data });
+}
+function reportHealth(message: string, data: Record<string, string | number | boolean | null | undefined>, err?: unknown) {
+  if (err instanceof Error) Sentry.captureException(err, { tags: { flow: 'health' }, extra: { ...data, message } });
+  else Sentry.captureMessage(message, { level: 'warning', tags: { flow: 'health' }, extra: { ...data, detail: err == null ? undefined : String((err as any)?.message ?? err) } });
+}
+const errText = (e: unknown) => (e instanceof Error ? e.message : typeof e === 'string' ? e : (e as any)?.message ? String((e as any).message) : JSON.stringify(e ?? null));
 
 const DEFAULT_SNAPSHOT: HealthSnapshot = {
   stepsToday: 0,
@@ -66,6 +96,19 @@ const DEFAULT_SNAPSHOT: HealthSnapshot = {
 };
 
 // ─── Helpers ────────────────────────────────────────────────
+/** How many of the snapshot's metrics actually carry a value. */
+export function countMetrics(s: HealthSnapshot): number {
+  let n = 0;
+  if (s.stepsToday > 0 || s.stepsWeekly.some((v) => v > 0)) n++;
+  if (s.activeCaloriesToday > 0 || s.basalCaloriesToday > 0) n++;
+  if (s.heartRateLatest !== null || s.heartRateAvg24h !== null) n++;
+  if (s.restingHeartRate !== null) n++;
+  if (s.bloodOxygen !== null) n++;
+  if (s.bloodPressureSystolic !== null) n++;
+  if (s.latestWeight !== null) n++;
+  return n;
+}
+
 function getStartOfDay(daysAgo = 0): Date {
   const d = new Date();
   d.setDate(d.getDate() - daysAgo);
@@ -143,7 +186,9 @@ export function HealthProvider({ children }: PropsWithChildren) {
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [healthData, setHealthData] = useState<HealthSnapshot | null>(null);
+  const [diagnostic, setDiagnostic] = useState<HealthDiagnostic>({ module: false, available: null, lastAttempt: null });
   const appState = useRef(AppState.currentState);
+  const noteAttempt = useCallback((lastAttempt: string) => setDiagnostic((d) => ({ ...d, lastAttempt })), []);
 
   // Check availability on mount
   useEffect(() => {
@@ -152,12 +197,33 @@ export function HealthProvider({ children }: PropsWithChildren) {
       const mod = loadHealthConnect();
       available = !!mod;
       setIsHealthAvailable(available);
+      setDiagnostic((d) => ({ ...d, module: !!mod }));
     } else if (Platform.OS === 'ios') {
       const mod = loadAppleHealth();
       available = !!mod;
       setIsHealthAvailable(available);
+      setDiagnostic((d) => ({ ...d, module: !!mod }));
+      // Ask HealthKit itself whether this device has health data at all
+      // (an iPad does not). A build with the module but no HealthKit can
+      // never prompt, and used to sit behind a live "Connect" button.
+      if (mod && typeof mod.isAvailable === 'function') {
+        try {
+          mod.isAvailable((err: any, ok: boolean) => {
+            const yes = !err && !!ok;
+            setDiagnostic((d) => ({ ...d, available: yes }));
+            if (!yes) {
+              setIsHealthAvailable(false);
+              healthBreadcrumb('healthkit unavailable', { err: err ? errText(err) : null });
+            }
+          });
+        } catch (e) {
+          setDiagnostic((d) => ({ ...d, available: false, lastAttempt: `isAvailable threw: ${errText(e)}` }));
+          setIsHealthAvailable(false);
+        }
+      }
+      healthBreadcrumb('health module probe', { module: !!mod });
     }
-    
+
     // Check if previously connected
     SecureStore.getItemAsync('health_connected').then((val) => {
       if (val === 'true' && available) {
@@ -183,17 +249,22 @@ export function HealthProvider({ children }: PropsWithChildren) {
   }, [isConnected]);
 
   // ─── Android: Health Connect ──────────────────────────────
-  const connectAndroid = useCallback(async () => {
+  const connectAndroid = useCallback(async (): Promise<boolean> => {
     const mod = loadHealthConnect();
-    if (!mod) return;
+    if (!mod) {
+      noteAttempt('Health Connect module is not in this build');
+      showAlert({ type: 'warning', title: 'Health Connect unavailable', message: 'Health Connect is not available in this build of FitLink on this device.' });
+      return false;
+    }
 
     const { initialize, requestPermission } = mod;
 
     // Step 1: Initialize the SDK (MUST be called before requestPermission)
     const isInitialized = await initialize();
     if (!isInitialized) {
-      console.error('[HealthContext] Health Connect initialization failed');
-      return;
+      noteAttempt('Health Connect did not initialise (is the Health Connect app installed?)');
+      showAlert({ type: 'warning', title: 'Health Connect not ready', message: 'Health Connect could not start on this phone. Install or update the Health Connect app, then try again.' });
+      return false;
     }
 
     // Step 2: Request permissions
@@ -208,11 +279,19 @@ export function HealthProvider({ children }: PropsWithChildren) {
       { accessType: 'read', recordType: 'Weight' },
     ]);
 
-    if (__DEV__) console.log('[HealthContext] Permissions granted:', JSON.stringify(permissions));
+    const grantedCount = Array.isArray(permissions) ? permissions.length : 0;
+    healthBreadcrumb('health connect permissions', { granted: grantedCount });
+    if (grantedCount === 0) {
+      noteAttempt('Health Connect: no permissions granted');
+      showAlert({ type: 'warning', title: 'No access granted', message: 'Health Connect did not grant FitLink any data. Open Health Connect → App permissions → FitLink to allow it, then connect again.' });
+      return false;
+    }
+    noteAttempt(`Health Connect granted ${grantedCount} permission${grantedCount === 1 ? '' : 's'}`);
     await SecureStore.setItemAsync('health_connected', 'true');
     setIsConnected(true);
     await readAndroidMetrics(mod);
-  }, []);
+    return true;
+  }, [noteAttempt, showAlert]);
 
   const readAndroidMetrics = useCallback(async (mod?: any) => {
     const healthMod = mod || loadHealthConnect();
@@ -332,28 +411,28 @@ export function HealthProvider({ children }: PropsWithChildren) {
   }, []);
 
   // ─── iOS: Apple HealthKit ─────────────────────────────────
-  const connectIOS = useCallback(async () => {
+  const connectIOS = useCallback(async (): Promise<boolean> => {
     const AppleHealthKit = loadAppleHealth();
     if (!AppleHealthKit) {
+      // Production copy. This used to print "run npx expo run:ios" to athletes.
+      noteAttempt('Apple Health module is not in this build');
+      reportHealth('apple health module missing', { module: false });
       showAlert({
         type: 'warning',
         title: 'Apple Health unavailable',
-        message: 'Apple Health requires a custom development build. '
-          + 'It is not available in Expo Go.\n\n'
-          + 'To enable Apple Health:\n'
-          + '1. Run: npx expo run:ios\n'
-          + '2. Or create an EAS development build',
+        message: 'Apple Health is not available in this build of FitLink on this device.',
         buttons: [{ text: 'OK' }],
       });
-      return;
+      return false;
     }
 
     const Permissions = AppleHealthKit.Constants?.Permissions;
 
     if (!Permissions) {
-      console.error('[HealthContext] Apple HealthKit Constants not available');
-      showAlert({ type: 'error', title: 'Error', message: 'Apple HealthKit permissions could not be loaded. Please reinstall the app.' });
-      return;
+      noteAttempt('Apple Health permission table failed to load');
+      reportHealth('apple health constants missing', { module: true });
+      showAlert({ type: 'error', title: 'Apple Health unavailable', message: 'Apple Health permissions could not be loaded. Reinstall FitLink and try again.' });
+      return false;
     }
 
     const permissions = {
@@ -373,23 +452,60 @@ export function HealthProvider({ children }: PropsWithChildren) {
       },
     };
 
-    return new Promise<void>((resolve, reject) => {
-      AppleHealthKit.initHealthKit(permissions, (err: any) => {
-        if (err) {
-          console.error('[HealthContext] Apple HealthKit init failed:', err);
-          reject(err);
-          return;
-        }
-        SecureStore.setItemAsync('health_connected', 'true');
-        setIsConnected(true);
-        readIOSMetrics().then(resolve).catch(resolve);
-      });
-    });
-  }, []);
+    healthBreadcrumb('healthkit init requested', { readTypes: permissions.permissions.read.length });
+    noteAttempt('Asking Apple Health for access…');
 
-  const readIOSMetrics = useCallback(async () => {
+    // The permission sheet is Apple's; all we can do is wait for the callback.
+    // If it never comes (interop failure, sheet swallowed) the athlete gets a
+    // sentence instead of a spinner that stops for no reason.
+    const initialised = await new Promise<{ ok: boolean; err?: unknown }>((resolve) => {
+      const timer = setTimeout(() => resolve({ ok: false, err: 'Apple Health did not answer within 30 seconds' }), HEALTH_INIT_TIMEOUT_MS);
+      try {
+        AppleHealthKit.initHealthKit(permissions, (err: any, ok?: any) => {
+          clearTimeout(timer);
+          if (err) resolve({ ok: false, err });
+          else resolve({ ok: ok !== false });
+        });
+      } catch (e) {
+        clearTimeout(timer);
+        resolve({ ok: false, err: e });
+      }
+    });
+
+    if (!initialised.ok) {
+      const detail = errText(initialised.err);
+      noteAttempt(`Apple Health refused: ${detail}`);
+      reportHealth('healthkit init failed', { module: true, detail }, initialised.err instanceof Error ? initialised.err : undefined);
+      showAlert({
+        type: 'error',
+        title: 'Apple Health did not connect',
+        message: `Apple Health answered: ${detail}\n\nIf you tapped “Don't Allow”, open Settings → Health → Data Access & Devices → FitLink and turn the categories on, then connect again.`,
+        buttons: [{ text: 'OK' }],
+      });
+      return false;
+    }
+
+    // Apple never tells an app whether READ access was granted or denied, so
+    // the only honest signal is the first read: connected, and either data or
+    // "nothing in Apple Health yet".
+    await SecureStore.setItemAsync('health_connected', 'true');
+    setIsConnected(true);
+    healthBreadcrumb('healthkit init ok');
+    try {
+      const snapshot = await readIOSMetrics();
+      const found = snapshot ? countMetrics(snapshot) : 0;
+      noteAttempt(found > 0 ? `Apple Health connected · ${found} metric${found === 1 ? '' : 's'} found` : 'Apple Health connected · no data in Apple Health yet (or read access was not allowed)');
+      healthBreadcrumb('healthkit first read', { metrics: found });
+    } catch (e) {
+      noteAttempt(`Connected, but the first read failed: ${errText(e)}`);
+      reportHealth('healthkit first read failed', { module: true }, e);
+    }
+    return true;
+  }, [noteAttempt, showAlert]);
+
+  const readIOSMetrics = useCallback(async (): Promise<HealthSnapshot | null> => {
     const AppleHealthKit = loadAppleHealth();
-    if (!AppleHealthKit) return;
+    if (!AppleHealthKit) return null;
 
     const now = new Date();
     const snapshot: HealthSnapshot = { ...DEFAULT_SNAPSHOT, lastSynced: now };
@@ -487,29 +603,32 @@ export function HealthProvider({ children }: PropsWithChildren) {
 
     snapshot.totalCaloriesToday = Math.round(snapshot.activeCaloriesToday + snapshot.basalCaloriesToday);
     setHealthData(snapshot);
+    return snapshot;
   }, []);
 
   // ─── Unified connect/refresh ──────────────────────────────
-  const connectHealth = useCallback(async () => {
+  const connectHealth = useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
     try {
-      if (Platform.OS === 'android') {
-        await connectAndroid();
-      } else if (Platform.OS === 'ios') {
-        await connectIOS();
-      }
+      if (Platform.OS === 'android') return await connectAndroid();
+      if (Platform.OS === 'ios') return await connectIOS();
+      noteAttempt('Health data is not available on this platform');
+      return false;
     } catch (err: any) {
-      console.error('[HealthContext] Connect failed:', err);
+      const detail = errText(err);
+      noteAttempt(`Connect failed: ${detail}`);
+      reportHealth('health connect threw', { platform: Platform.OS }, err);
       showAlert({
         type: 'error',
-        title: 'Connection failed',
-        message: err?.message || 'Could not connect to health services. Please try again.',
+        title: 'Health data did not connect',
+        message: detail || 'Could not connect to health services. Please try again.',
         buttons: [{ text: 'OK' }],
       });
+      return false;
     } finally {
       setIsLoading(false);
     }
-  }, [connectAndroid, connectIOS]);
+  }, [connectAndroid, connectIOS, noteAttempt, showAlert]);
 
   const refreshHealth = useCallback(async () => {
     if (!isConnected) return;
@@ -586,7 +705,7 @@ export function HealthProvider({ children }: PropsWithChildren) {
 
   return (
     <HealthContext.Provider value={{
-      isHealthAvailable, isConnected, isLoading, healthData,
+      isHealthAvailable, isConnected, isLoading, healthData, diagnostic,
       connectHealth, refreshHealth, disconnectHealth, syncToServer,
     }}>
       {children}
