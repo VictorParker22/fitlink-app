@@ -47,6 +47,9 @@ const ACTIVITY_TYPES = [
   { name: 'Other', category: 'Other' },
 ];
 
+const DURATION_PRESETS = [15, 30, 45, 60, 90];
+const formatDuration = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}min` : ''}` : `${m}min`);
+
 export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onClose, onSave, saving }) => {
   const [screen, setScreen] = useState<'form' | 'picker'>('form');
 
@@ -54,12 +57,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
   const [activityName, setActivityName] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date());
 
-  const [showTimePickers, setShowTimePickers] = useState(false);
-  const [hour, setHour] = useState(12);
-  const [minute, setMinute] = useState(0);
-  const [ampm, setAmpm] = useState<'AM' | 'PM'>('PM');
-  const [durationHr, setDurationHr] = useState(0);
-  const [durationMn, setDurationMn] = useState(45);
+  const [totalMinutes, setTotalMinutes] = useState(45);
 
   const [location, setLocation] = useState<'In club' | 'Not in club'>('In club');
   const [showNotes, setShowNotes] = useState(false);
@@ -76,9 +74,7 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
       setSelectedType(ACTIVITY_TYPES[0]);
       setActivityName('');
       setSelectedDate(new Date());
-      setShowTimePickers(false);
-      setDurationHr(0);
-      setDurationMn(45);
+      setTotalMinutes(45);
       setLocation('In club');
       setShowNotes(false);
       setNotes('');
@@ -94,6 +90,8 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
     // Local date parts, not toISOString — UTC-derived keys shift the date for
     // anyone east of UTC logging in the evening (lib/streak.ts hazard).
     const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+    const durationHr = Math.floor(totalMinutes / 60);
+    const durationMn = totalMinutes % 60;
     const durStr = durationHr > 0 ? `${durationHr}h ${durationMn}min` : `${durationMn}min`;
     onSave({
       type: selectedType.name,
@@ -203,32 +201,52 @@ export const AddActivityModal: React.FC<AddActivityModalProps> = ({ visible, onC
         })}
       </View>
 
-      <View style={styles.timeDurationRow}>
-        <TouchableOpacity
-          style={styles.timeBlock}
-          onPress={() => setShowTimePickers(!showTimePickers)}
-          accessibilityRole="button"
-          accessibilityLabel="Edit start time"
-        >
-          <Text style={styles.blockLabel} maxFontSizeMultiplier={1.2}>Start time</Text>
-          <Text style={styles.blockValue} maxFontSizeMultiplier={1.2}>{hour}:{minute.toString().padStart(2, '0')} {ampm}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.timeBlock}
-          onPress={() => setShowTimePickers(!showTimePickers)}
-          accessibilityRole="button"
-          accessibilityLabel="Edit duration"
-        >
+      {/* Duration is the one time field the row stores (duration_minutes).
+          A start time was shown here but never saved, and tapping either
+          block revealed a "Pickers placeholder" line — a tester rightly
+          called it fake (2026-09-15). Now: quick picks plus a stepper. */}
+      <View style={styles.durationCard}>
+        <View style={styles.durationHead}>
           <Text style={styles.blockLabel} maxFontSizeMultiplier={1.2}>Duration</Text>
-          <Text style={styles.blockValue} maxFontSizeMultiplier={1.2}>{durationHr > 0 ? `${durationHr}h ` : ''}{durationMn}min</Text>
-        </TouchableOpacity>
-      </View>
-
-      {showTimePickers && (
-        <View style={styles.pickerArea}>
-           <Text style={styles.pickerHint}>Pickers placeholder (Hour, Min, AM/PM, DurHr, DurMin)</Text>
+          <Text style={styles.blockValue} maxFontSizeMultiplier={1.2} accessibilityLiveRegion="polite">{formatDuration(totalMinutes)}</Text>
         </View>
-      )}
+        <View style={styles.durationChips}>
+          {DURATION_PRESETS.map((m) => {
+            const on = totalMinutes === m;
+            return (
+              <TouchableOpacity
+                key={m}
+                style={[styles.durationChip, on && styles.durationChipOn]}
+                onPress={() => { Haptics.selectionAsync(); setTotalMinutes(m); }}
+                accessibilityRole="button"
+                accessibilityLabel={`${formatDuration(m)}`}
+                accessibilityState={{ selected: on }}
+              >
+                <Text style={[styles.durationChipText, on && styles.durationChipTextOn]} maxFontSizeMultiplier={1.2}>{m >= 60 ? `${m / 60}h` : `${m}m`}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+        <View style={styles.stepperRow}>
+          <TouchableOpacity
+            style={styles.stepperBtn}
+            onPress={() => { Haptics.selectionAsync(); setTotalMinutes((v) => Math.max(5, v - 5)); }}
+            accessibilityRole="button"
+            accessibilityLabel="Five minutes less"
+          >
+            <Ionicons name="remove" size={20} color={CoachColors.textPrimary} />
+          </TouchableOpacity>
+          <Text style={styles.stepperText} maxFontSizeMultiplier={1.2}>5 min steps</Text>
+          <TouchableOpacity
+            style={styles.stepperBtn}
+            onPress={() => { Haptics.selectionAsync(); setTotalMinutes((v) => Math.min(600, v + 5)); }}
+            accessibilityRole="button"
+            accessibilityLabel="Five minutes more"
+          >
+            <Ionicons name="add" size={20} color={CoachColors.textPrimary} />
+          </TouchableOpacity>
+        </View>
+      </View>
 
       <View style={styles.locationToggle}>
         <TouchableOpacity
@@ -499,18 +517,31 @@ const styles = StyleSheet.create({
   dayTextSelected: {
     color: CoachColors.onAccent,
   },
-  timeDurationRow: {
-    flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.xl,
-  },
-  timeBlock: {
-    flex: 1,
+  durationCard: {
     backgroundColor: CoachColors.bg,
     padding: Spacing.md,
     borderRadius: Radius.lg,
     borderCurve: 'continuous',
+    marginBottom: Spacing.xl,
+    gap: Spacing.md,
   },
+  durationHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  durationChips: { flexDirection: 'row', gap: 8 },
+  durationChip: {
+    flex: 1, height: 40, borderRadius: 999, borderCurve: 'continuous',
+    borderWidth: 1, borderColor: CoachColors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  durationChipOn: { backgroundColor: CoachColors.accent, borderColor: CoachColors.accent },
+  durationChipText: { fontFamily: CoachFonts.bodySemiBold, fontSize: FontSize.sm, color: CoachColors.textPrimary },
+  durationChipTextOn: { color: CoachColors.onAccent },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  stepperBtn: {
+    width: 44, height: 44, borderRadius: 22, borderCurve: 'continuous',
+    borderWidth: 1, borderColor: CoachColors.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  stepperText: { fontFamily: CoachFonts.bodyMedium, fontSize: FontSize.xs, color: CoachColors.textMuted },
   blockLabel: {
     fontFamily: CoachFonts.bodyMedium,
     fontSize: FontSize.xs,
@@ -521,18 +552,6 @@ const styles = StyleSheet.create({
     fontFamily: CoachFonts.bodySemiBold,
     fontSize: FontSize.base,
     color: CoachColors.textPrimary,
-  },
-  pickerArea: {
-    backgroundColor: CoachColors.bg,
-    padding: Spacing.lg,
-    borderRadius: Radius.lg,
-    borderCurve: 'continuous',
-    marginBottom: Spacing.xl,
-    alignItems: 'center',
-  },
-  pickerHint: {
-    color: CoachColors.textMuted,
-    fontFamily: CoachFonts.bodyMedium,
   },
   locationToggle: {
     flexDirection: 'row',

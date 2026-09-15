@@ -33,6 +33,7 @@ import * as Haptics from 'expo-haptics';
 
 import { supabase } from '../../lib/supabase';
 import { useClient } from '../../context/ClientContext';
+import { useAlert } from '../../context/AlertContext';
 import { useWorkout } from '../../context/WorkoutContext';
 import { CoachColors, CoachFonts } from '../../constants/coachDesign';
 import { Spacing, Radius, FontSize } from '../../constants/theme';
@@ -79,6 +80,7 @@ export default function ActivityScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { workouts, sessions, progressLogs, mealLogs, clientData } = useClient();
+  const { showAlert } = useAlert();
   const { workoutHistory } = useWorkout();
 
   let healthCtx: any = null;
@@ -255,16 +257,18 @@ export default function ActivityScreen() {
       setSaving(false);
 
       if (error) {
+        // A failed save used to close the sheet in silence, which reads as
+        // "it saved" until the entry never appears.
         if (error.code === '42P01') setManualUnavailable(true);
-        else if (__DEV__) console.warn('[Activity] save failed:', error.message);
         setModalVisible(false);
+        showAlert({ type: 'error', title: 'Activity not saved', message: error.code === '42P01' ? 'Manual activity logging is not switched on for your account yet.' : 'The activity could not be saved. Check your connection and try again.' });
         return;
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       if (row) setManualActivities((prev) => [row as ManualActivity, ...prev]);
       setModalVisible(false);
     },
-    [clientData?.id, saving]
+    [clientData?.id, saving, showAlert]
   );
 
   const handleBack = useCallback(() => {
