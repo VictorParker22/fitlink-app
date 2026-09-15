@@ -43,7 +43,7 @@ import { ClientRoute } from '../../types/routes';
 import { parseLocalDay, localDayString } from '../../lib/streak';
 
 import { ActivityTripleRings } from '../../components/client-tabs/activity/ActivityTripleRings';
-import { ActivityWeekStrip } from '../../components/client-tabs/activity/ActivityWeekStrip';
+import { STEP_GOAL } from '../../lib/progressData';
 import { ActivityHeatmapCalendar } from '../../components/client-tabs/activity/ActivityHeatmapCalendar';
 import { ActivityRecentFeed } from '../../components/client-tabs/activity/ActivityRecentFeed';
 import { AddActivityModal } from '../../components/client-tabs/activity/AddActivityModal';
@@ -229,8 +229,32 @@ export default function ActivityScreen() {
       bump(localDayString(new Date(w.start)), { workoutName: w.name, duration: w.minutes });
     });
 
+    // A day over the step goal counts as an active day, lightly (canvas board 2).
+    const stepsByDay: Record<string, number> = healthConnected && healthCtx?.healthHistory ? healthCtx.healthHistory.dailySteps : {};
+    Object.entries(stepsByDay).forEach(([day, steps]) => {
+      if (steps >= STEP_GOAL && !map[day]) map[day] = { inClub: false, progress: 0.2, workoutName: `${steps.toLocaleString()} steps` };
+    });
+
     return map;
-  }, [workoutHistory, workouts, manualActivities, gymVisits, healthWorkouts]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workoutHistory, workouts, manualActivities, gymVisits, healthWorkouts, healthConnected, healthCtx?.healthHistory]);
+
+  // Minutes per day this week, by source: FitLink sessions vs the health store.
+  const minutesWeek = useMemo(() => {
+    const now = new Date();
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+    const todayKey = localDayString(now);
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(monday); d.setDate(monday.getDate() + i);
+      const key = localDayString(d);
+      let fitlink = 0; let health = 0;
+      (workoutHistory || []).forEach((e) => { if (e?.completedAt && localDayString(new Date(e.completedAt)) === key) fitlink += Math.round((e.durationSec || 0) / 60); });
+      (workouts || []).forEach((w: any) => { if (w.status === 'completed' && w.completed_at && localDayString(new Date(w.completed_at)) === key && w.duration_seconds) fitlink += Math.round(w.duration_seconds / 60); });
+      manualActivities.forEach((a) => { const day = parseLocalDay(a.activity_date); if (day && localDayString(day) === key) fitlink += a.duration_minutes || 0; });
+      healthWorkouts.forEach((w) => { if (localDayString(new Date(w.start)) === key) health += w.minutes; });
+      return { key, label: ['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.getDay()], fitlink, health, isToday: key === todayKey, future: key > todayKey };
+    });
+  }, [workoutHistory, workouts, manualActivities, healthWorkouts]);
 
   // ── Feed / week strip: server rows + manual activities (adapter-mapped) ───
   // Device history is intentionally excluded (completed assignments already
@@ -356,11 +380,33 @@ export default function ActivityScreen() {
           mealsLoggedToday={mealsLoggedToday}
         />
 
-        <ActivityWeekStrip
-          workouts={feedWorkouts}
-          sessions={sessions || []}
-          progressLogs={progressLogs || []}
-        />
+        {/* Minutes this week, by source (canvas "Progress Tab", board 2). */}
+        <View style={styles.minutesCard}>
+          <View style={styles.minutesHead}>
+            <Text style={styles.minutesTitle}>Minutes this week</Text>
+            <Text style={styles.minutesMeta}>{minutesWeek.reduce((s, d) => s + d.fitlink + d.health, 0)} so far</Text>
+          </View>
+          <View style={styles.minutesBars}>
+            {minutesWeek.map((d) => {
+              const total = d.fitlink + d.health;
+              const max = Math.max(60, ...minutesWeek.map((x) => x.fitlink + x.health));
+              const h = total > 0 ? Math.max(6, Math.round((total / max) * 56)) : 4;
+              return (
+                <View key={d.key} style={styles.minutesCol} accessible accessibilityLabel={`${d.label}${d.isToday ? ', today' : ''}: ${total} minutes${d.health > 0 ? `, ${d.health} from ${healthSource}` : ''}`}>
+                  {total > 0 ? <Text style={[styles.minutesValue, d.isToday && { color: CoachColors.accent }]}>{total}</Text> : null}
+                  <View style={[styles.minutesBar, { height: h, backgroundColor: total === 0 ? CoachColors.borderMuted : d.health >= d.fitlink ? CoachColors.textSecondary : CoachColors.accent, borderStyle: d.future ? 'dashed' : 'solid', borderWidth: d.future ? 1 : 0, borderColor: CoachColors.border }, d.isToday && total > 0 && styles.minutesBarToday]} />
+                  <Text style={[styles.minutesDay, d.isToday && { color: CoachColors.accent }]}>{d.label}</Text>
+                </View>
+              );
+            })}
+          </View>
+          {healthWorkouts.length > 0 && (
+            <View style={styles.minutesLegend}>
+              <View style={styles.minutesLegendItem}><View style={[styles.minutesSwatch, { backgroundColor: CoachColors.accent }]} /><Text style={styles.minutesLegendText}>FitLink session</Text></View>
+              <View style={styles.minutesLegendItem}><View style={[styles.minutesSwatch, { backgroundColor: CoachColors.textSecondary }]} /><Text style={styles.minutesLegendText}>{healthSource} / watch</Text></View>
+            </View>
+          )}
+        </View>
 
         <ActivityHeatmapCalendar activityMap={activityMap} workouts={feedWorkouts} />
 
@@ -382,6 +428,20 @@ export default function ActivityScreen() {
 }
 
 const styles = StyleSheet.create({
+  minutesCard: { backgroundColor: CoachColors.surface, borderWidth: 1, borderColor: CoachColors.borderMuted, borderRadius: 18, borderCurve: 'continuous', padding: 16, gap: 10, marginBottom: 16 },
+  minutesHead: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' },
+  minutesTitle: { fontFamily: CoachFonts.bodySemiBold, fontSize: 13, color: CoachColors.textPrimary },
+  minutesMeta: { fontFamily: CoachFonts.body, fontSize: 12, color: CoachColors.textSecondary },
+  minutesBars: { flexDirection: 'row', gap: 8, alignItems: 'flex-end', height: 90 },
+  minutesCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 6, height: '100%' },
+  minutesValue: { fontFamily: CoachFonts.mono, fontSize: 10, color: CoachColors.textSecondary },
+  minutesBar: { width: '100%', borderRadius: 5 },
+  minutesBarToday: { outlineWidth: 0 },
+  minutesDay: { fontFamily: CoachFonts.body, fontSize: 10, color: CoachColors.textFaint },
+  minutesLegend: { flexDirection: 'row', gap: 14 },
+  minutesLegendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  minutesSwatch: { width: 8, height: 8, borderRadius: 2 },
+  minutesLegendText: { fontFamily: CoachFonts.body, fontSize: 11, color: CoachColors.textFaint },
   container: {
     flex: 1,
     backgroundColor: CoachColors.bg,

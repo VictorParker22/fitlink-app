@@ -20,6 +20,8 @@ export const ClientRoute = {
   // Content screens
   exploreClasses: '/(client-tabs)/explore-classes' as const,
   activity: '/(client-tabs)/activity' as const,
+  habits: '/(client-tabs)/habits' as const,
+  liftDetail: '/(client-tabs)/lift-detail' as const,
 
   // Profile & settings
   myProfile: '/(client-tabs)/my-profile' as const,

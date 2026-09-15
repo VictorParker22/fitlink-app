@@ -77,6 +77,10 @@ export interface HealthHistory {
   dailySteps: Record<string, number>; // 'YYYY-MM-DD' (local) → steps
   workouts: HealthWorkout[];
   weights: { date: string; lbs: number }[]; // date 'YYYY-MM-DD' local
+  /** Minutes asleep per night, keyed by the LOCAL day the sleep ended on. */
+  sleepMinutes: Record<string, number>;
+  /** Resting heart rate samples, one per local day (latest wins). */
+  restingHr: Record<string, number>;
   readAt: Date;
 }
 
@@ -100,7 +104,7 @@ const HEALTH_INIT_TIMEOUT_MS = 30_000;
 
 const IOS_READ_PERMISSION_KEYS = [
   'StepCount', 'HeartRate', 'RestingHeartRate', 'ActiveEnergyBurned', 'BasalEnergyBurned',
-  'OxygenSaturation', 'BloodPressureSystolic', 'BloodPressureDiastolic', 'Weight',
+  'OxygenSaturation', 'BloodPressureSystolic', 'BloodPressureDiastolic', 'Weight', 'SleepAnalysis',
 ] as const;
 
 /**
@@ -403,6 +407,7 @@ export function HealthProvider({ children }: PropsWithChildren) {
       { accessType: 'read', recordType: 'OxygenSaturation' },
       { accessType: 'read', recordType: 'BloodPressure' },
       { accessType: 'read', recordType: 'Weight' },
+      { accessType: 'read', recordType: 'SleepSession' },
     ]);
 
     const grantedCount = Array.isArray(permissions) ? permissions.length : 0;
@@ -729,7 +734,7 @@ export function HealthProvider({ children }: PropsWithChildren) {
         } catch { resolve(null); }
       });
 
-    const history: HealthHistory = { dailySteps: {}, workouts: [], weights: [], readAt: now };
+    const history: HealthHistory = { dailySteps: {}, workouts: [], weights: [], sleepMinutes: {}, restingHr: {}, readAt: now };
 
     const steps = await call('getDailyStepCountSamples', { startDate: start.toISOString(), endDate: now.toISOString(), period: 1440, includeManuallyAdded: true });
     if (Array.isArray(steps)) {
@@ -763,6 +768,25 @@ export function HealthProvider({ children }: PropsWithChildren) {
         history.weights.push({ date: localDayOf(s.startDate), lbs: Math.round(s.value * 10) / 10 });
       });
     }
+
+    // Sleep: asleep stages only (not "in bed"), summed per the night's end day.
+    const sleep = await call('getSleepSamples', { startDate: getStartOfDay(30).toISOString(), endDate: now.toISOString(), ascending: true });
+    if (Array.isArray(sleep)) {
+      sleep.forEach((s: any) => {
+        const v = String(s?.value ?? '').toUpperCase();
+        if (!s?.startDate || !s?.endDate || v === 'INBED' || v === 'AWAKE') return;
+        const mins = (new Date(s.endDate).getTime() - new Date(s.startDate).getTime()) / 60000;
+        if (!(mins > 0) || mins > 20 * 60) return;
+        const key = localDayOf(s.endDate);
+        history.sleepMinutes[key] = (history.sleepMinutes[key] ?? 0) + mins;
+      });
+      Object.keys(history.sleepMinutes).forEach((k) => { history.sleepMinutes[k] = Math.round(history.sleepMinutes[k]); });
+    }
+
+    const rhr = await call('getRestingHeartRateSamples', { startDate: start.toISOString(), endDate: now.toISOString(), ascending: true });
+    if (Array.isArray(rhr)) {
+      rhr.forEach((s: any) => { if (s?.startDate && s.value > 0) history.restingHr[localDayOf(s.startDate)] = Math.round(s.value); });
+    }
     return history;
   }, []);
 
@@ -773,7 +797,23 @@ export function HealthProvider({ children }: PropsWithChildren) {
     const now = new Date();
     const start = getStartOfDay(HEALTH_HISTORY_DAYS);
     const range = { timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: now.toISOString() } };
-    const history: HealthHistory = { dailySteps: {}, workouts: [], weights: [], readAt: now };
+    const history: HealthHistory = { dailySteps: {}, workouts: [], weights: [], sleepMinutes: {}, restingHr: {}, readAt: now };
+
+    try {
+      const r = await readRecords('SleepSession', range);
+      (r?.records || []).forEach((rec: any) => {
+        if (!rec?.startTime || !rec?.endTime) return;
+        const mins = (new Date(rec.endTime).getTime() - new Date(rec.startTime).getTime()) / 60000;
+        if (!(mins > 0) || mins > 20 * 60) return;
+        const key = localDayOf(rec.endTime);
+        history.sleepMinutes[key] = Math.round((history.sleepMinutes[key] ?? 0) + mins);
+      });
+    } catch (e) { if (__DEV__) console.warn('[Health] sleep history:', e); }
+
+    try {
+      const r = await readRecords('RestingHeartRate', range);
+      (r?.records || []).forEach((rec: any) => { if (rec?.time && rec.beatsPerMinute > 0) history.restingHr[localDayOf(rec.time)] = Math.round(rec.beatsPerMinute); });
+    } catch (e) { if (__DEV__) console.warn('[Health] resting hr history:', e); }
 
     try {
       const r = await readRecords('Steps', range);

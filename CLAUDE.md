@@ -356,6 +356,32 @@ repository secret).
   decided earlier: Settings → Health → Data Access & Devices → FitLink), `connect_failed`
   (Apple's error text), `connect_denied` (Health Connect), `read` / `history` (counts).
   Query it as postgres before asking anyone for a screenshot.
+- **Progress tab (2026-09-16, canvas "Progress Tab"
+  https://claude.ai/artifact/RMef6A2BT6T9AhtwqDHu3N).** `app/(client-tabs)/my-progress.tsx`
+  is one scroll of evidence: the corner's read (Solo) or the coach's note → today's three
+  rings + plan-vs-done week → main lifts → PR moments → habits → body → check-ins. Child
+  screens: `activity.tsx` (90-day heatmap incl. step-goal days, minutes-by-source strip,
+  feed with time of day), `health-insights.tsx` (14-day steps, HR, 7 nights of sleep,
+  vitals that exist), `habits.tsx` (tappable rows with spring + ripple + haptic, steps and
+  sleep fill themselves from Health at 8,000 / 7 h, four-week grid, runs), `lift-detail.tsx`
+  (best set, Epley e1RM, range, every session's sets; the corner line is the builder's
+  `workout_exercises.notes`). Pure numbers live in `lib/progressData.ts`
+  (`tests/progressData.test.ts`): best set per session, PRs need a previous best, the week is
+  Monday→Sunday local, habit rows are keyed by the UTC day (`habitDayKey`, matching the Home
+  tracker). Shared pieces: `components/client-tabs/progress/{Ring,Segmented,CornerRead,
+  SundayCheckIn}.tsx`. **The only AI text is `solo-progress`** (`lib/progressRead.ts`):
+  the server computes 28 days of facts from the athlete's rows + the Health numbers the app
+  sends, Gemini writes sentences under `numbersNotInContext`, a deterministic read lands
+  when it fails, rows go to `client_progress_reads` (self-select only) and, for a check-in,
+  `client_checkins.corner_reply`. Solo athletes get `SundayCheckIn` (facts first, four
+  one-tap ratings, one line, the corner replies in place); coached athletes keep
+  `WeeklyCheckIn`. "Ask <corner> →" opens the corner with `?ask=progress`.
+  **HealthKit permission strings must be literals**: the first request built the read list
+  from `Constants.Permissions.X` and iOS got an EMPTY list (success, no sheet, app absent
+  from Health → Apps); `requestIOSAuthorization` now passes the string keys with the
+  constant as a fallback, and the reauth-on-empty pass is what finally showed the sheet
+  (`sheetMs` 3930 in `client_health_diagnostics`). Sleep (`SleepAnalysis` /
+  `SleepSession`) and resting-HR history joined the read set the same day.
 - **Going back means the screen you were on.** `lib/nav.ts goBackOr(router, fallback)` for
   every screen a push or deep link can open (notifications, the request screen); the Train
   tab remembers when a preview was opened from Home or a push (`arrivedFromElsewhereRef`) and

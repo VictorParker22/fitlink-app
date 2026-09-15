@@ -740,10 +740,11 @@ export default function SoloScreen() {
   const askHandledRef = useRef<string | null>(null);
   useEffect(() => {
     const ask = typeof params.ask === 'string' ? params.ask : '';
-    if (ask !== 'nutrition' || askHandledRef.current === ask) return;
+    if ((ask !== 'nutrition' && ask !== 'progress') || askHandledRef.current === ask) return;
     if (loading || !clientData?.id || !programSettled || waitingReply) return;
     askHandledRef.current = ask;
-    sendMessage('Write my meal plan');
+    // 'progress' arrives from the Progress tab's read card ("Ask <corner> →").
+    sendMessage(ask === 'nutrition' ? 'Write my meal plan' : 'How is this block going? What should I change next week?');
   }, [params.ask, loading, clientData?.id, programSettled, waitingReply, sendMessage]);
 
   // ── Hold to talk ──────────────────────────────────────────────────────────

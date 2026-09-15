@@ -1,1123 +1,238 @@
-import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, RefreshControl,
-  TouchableOpacity, Animated, Easing, Dimensions, Platform,
-} from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Circle as SvgCircle } from 'react-native-svg';
-import { Ionicons } from '@expo/vector-icons';
+/**
+ * (client-tabs)/health-insights.tsx — Health (canvas "Progress Tab", board 3).
+ *
+ * What Apple Health / Health Connect holds, read from the store: steps over
+ * 14 days, heart rate and resting trend, seven nights of sleep, the vitals
+ * that exist. A missing measure is a sentence, never a dash. The corner's
+ * line at the bottom is the stored weekly read (Solo), not generated here.
+ * Before a connection the screen is the ask and nothing that looks like data.
+ */
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, Pressable, Platform, RefreshControl, ActivityIndicator } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useClient } from '../../context/ClientContext';
-import { Spacing, Radius } from '../../constants/theme';
-import { CoachColors, CoachFonts } from '../../constants/coachDesign';
+import { CoachColors as C, CoachFonts as F } from '../../constants/coachDesign';
 import { ClientRoute } from '../../types/routes';
-import { useReducedMotion } from '../../lib/useReducedMotion';
+import { goBackOr } from '../../lib/nav';
 import { openHealthSettings } from '../../lib/healthSettings';
+import { loadStoredRead, type ProgressRead } from '../../lib/progressRead';
+import { lastDays, averageOver, formatHours, STEP_GOAL, SLEEP_GOAL_MIN } from '../../lib/progressData';
+import { localDayString } from '../../lib/streak';
+import { getSoloCharacter } from '../../lib/soloCharacters';
+import { CHARACTER_COLOR } from '../../components/client-tabs/progress/CornerRead';
+import { asWeightUnit, unitLabel } from '../../lib/units';
 
-// ─── Try to import health hook; gracefully handle missing module ────
 let useHealthHook: (() => any) | null = null;
-let countMetricsFn: ((s: HealthSnapshot) => number) | null = null;
+let countMetricsFn: ((s: any) => number) | null = null;
 try {
   const mod = require('../../context/HealthContext');
   useHealthHook = mod.useHealth;
   countMetricsFn = mod.countMetrics;
-} catch {
-  useHealthHook = null;
-}
-const countMetrics = (s: HealthSnapshot) => (countMetricsFn ? countMetricsFn(s) : 0);
+} catch { useHealthHook = null; }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-
-// ─── Types ──────────────────────────────────────────────────────────
-interface HealthSnapshot {
-  stepsToday: number;
-  stepsWeekly: number[];
-  activeCaloriesToday: number;
-  basalCaloriesToday: number;
-  totalCaloriesToday: number;
-  heartRateLatest: number | null;
-  heartRateAvg24h: number | null;
-  heartRateMin24h: number | null;
-  heartRateMax24h: number | null;
-  restingHeartRate: number | null;
-  bloodOxygen: number | null;
-  bloodPressureSystolic: number | null;
-  bloodPressureDiastolic: number | null;
-  latestWeight: number | null;
-  lastSynced: Date | null;
+function timeSince(d: Date): string {
+  const m = Math.round((Date.now() - d.getTime()) / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m} min ago`;
+  const h = Math.round(m / 60);
+  return h < 24 ? `${h} h ago` : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 }
 
-// ─── Empty snapshot shown until a health source is connected ────────
-const EMPTY_DATA: HealthSnapshot = {
-  stepsToday: 0,
-  stepsWeekly: [0, 0, 0, 0, 0, 0, 0],
-  activeCaloriesToday: 0,
-  basalCaloriesToday: 0,
-  totalCaloriesToday: 0,
-  heartRateLatest: null,
-  heartRateAvg24h: null,
-  heartRateMin24h: null,
-  heartRateMax24h: null,
-  restingHeartRate: null,
-  bloodOxygen: null,
-  bloodPressureSystolic: null,
-  bloodPressureDiastolic: null,
-  latestWeight: null,
-  lastSynced: null,
-};
-
-// ─── Constants ──────────────────────────────────────────────────────
-const STEP_GOAL = 10000;
-const RING_SIZE = 200;
-const RING_STROKE = 14;
-const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
-// ─── Component ──────────────────────────────────────────────────────
-export default function HealthInsightsScreen() {
+export default function HealthScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { clientData } = useClient();
-
-  // Health hook (may be null if module not available)
   let healthCtx: any = null;
-  if (useHealthHook) {
-    try { healthCtx = useHealthHook(); } catch { healthCtx = null; }
-  }
-
-  const isConnected = healthCtx?.isConnected ?? false;
-  const isLoading = healthCtx?.isLoading ?? false;
-  const connectHealth = healthCtx?.connectHealth ?? (() => {});
-  const refreshHealth = healthCtx?.refreshHealth ?? (() => Promise.resolve());
-  const syncToServer = healthCtx?.syncToServer ?? ((_id: string) => Promise.resolve());
-
-  // Real data only. Before a connection the dashboard is NOT drawn: a ring at
-  // 0 / 10,000, "—" vitals and a "take a walk" insight computed from zero
-  // steps read as invented numbers (a tester called it fake, 2026-09-15).
-  const data: HealthSnapshot = (isConnected && healthCtx?.healthData) ? healthCtx.healthData : EMPTY_DATA;
-  const notConnected = !isConnected;
-  const awaitingFirstRead = isConnected && !healthCtx?.healthData;
-  const hasStepData = data.stepsToday > 0 || data.stepsWeekly.some((v) => v > 0);
+  if (useHealthHook) { try { healthCtx = useHealthHook(); } catch { healthCtx = null; } }
+  const platform = Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect';
+  const isConnected: boolean = healthCtx?.isConnected ?? false;
+  const isLoading: boolean = healthCtx?.isLoading ?? false;
+  const data = isConnected ? healthCtx?.healthData ?? null : null;
+  const history = isConnected ? healthCtx?.healthHistory ?? null : null;
+  const unit = asWeightUnit(clientData?.weight_unit);
+  const solo = !clientData?.trainer_id;
+  const corner = getSoloCharacter(clientData?.solo_character);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [read, setRead] = useState<ProgressRead | null>(null);
+  useEffect(() => { if (solo) loadStoredRead().then(setRead); }, [solo]);
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    try {
-      await refreshHealth();
-      if (clientData?.id) {
-        await syncToServer(clientData.id);
-      }
-    } catch {}
-    setRefreshing(false);
-  }, [refreshHealth, syncToServer, clientData]);
+  const onRefresh = async () => { setRefreshing(true); try { await healthCtx?.refreshHealth?.(); } catch {} setRefreshing(false); };
 
-  // ─── Pulse animation for heart rate ─────────────────────────────
-  const pulseAnim = useRef(new Animated.Value(1)).current;
-  const reduceMotion = useReducedMotion();
-  useEffect(() => {
-    // Reduce Motion: the heart icon stays solid instead of beating.
-    if (reduceMotion) {
-      pulseAnim.setValue(1);
-      return;
-    }
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 0.3, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 0.3, duration: 400, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1, duration: 1200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
-      ])
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [pulseAnim, reduceMotion]);
+  const now = new Date();
+  const d14 = useMemo(() => lastDays(14, now, localDayString), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const d7 = d14.slice(7);
+  const d28 = useMemo(() => lastDays(28, now, localDayString), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const stepsAvg14 = history ? averageOver(history.dailySteps, d14) : null;
+  const sleepAvg7 = history ? averageOver(history.sleepMinutes, d7) : null;
+  const sleepLast = history?.sleepMinutes?.[localDayString(now)] ?? null;
+  const rhrFirst = history ? averageOver(history.restingHr, d28.slice(0, 7)) : null;
+  const rhrNow = data?.restingHeartRate ?? (history ? averageOver(history.restingHr, d7) : null);
+  const metrics = data && countMetricsFn ? countMetricsFn(data) : 0;
+  const hasHistory = !!history && (Object.keys(history.dailySteps).length > 0 || Object.keys(history.sleepMinutes).length > 0);
+  const empty = isConnected && data && metrics === 0 && !hasHistory;
 
-  // ─── Derived Values ─────────────────────────────────────────────
-  const stepsProgress = Math.min(data.stepsToday / STEP_GOAL, 1);
-  const strokeDashoffset = RING_CIRCUMFERENCE * (1 - stepsProgress);
-  const distanceKm = (data.stepsToday * 0.0008).toFixed(1);
-  const weeklyAvg = Math.round(data.stepsWeekly.reduce((a, b) => a + b, 0) / data.stepsWeekly.length);
-  const maxWeeklySteps = Math.max(...data.stepsWeekly, STEP_GOAL);
-  const todayIndex = new Date().getDay(); // 0=Sun, convert: Mon=0
-  const todayBarIdx = todayIndex === 0 ? 6 : todayIndex - 1;
-
-  // Resting HR classification
-  const getHRClassification = (hr: number | null) => {
-    if (hr === null) return { label: 'N/A', color: CoachColors.textMuted };
-    if (hr < 60) return { label: 'Athletic', color: CoachColors.accent };
-    if (hr <= 80) return { label: 'Normal', color: CoachColors.textSecondary };
-    return { label: 'Elevated', color: CoachColors.warning };
-  };
-  const hrClass = getHRClassification(data.restingHeartRate);
-
-  // Smart Insights
-  const insights = useMemo(() => {
-    const list: { icon: string; text: string; color: string }[] = [];
-    // Step insights only when steps were actually read; "0 steps" before a
-    // sync is absence of data, not a sedentary day.
-    if (hasStepData && data.stepsToday >= 8000) list.push({ icon: 'flame', text: 'Great activity day! You\'re on track.', color: CoachColors.accent });
-    else if (hasStepData && data.stepsToday < 3000) list.push({ icon: 'walk', text: 'Try a short walk today to boost your energy.', color: CoachColors.warning });
-    if (data.restingHeartRate !== null && data.restingHeartRate < 60) list.push({ icon: 'barbell', text: 'Athletic heart rate — excellent cardiovascular fitness!', color: CoachColors.accent });
-    if (data.heartRateAvg24h !== null && data.heartRateAvg24h > 100) list.push({ icon: 'warning', text: 'Elevated average heart rate. Consider rest or consult a doctor.', color: CoachColors.danger });
-    if (data.bloodOxygen !== null && data.bloodOxygen >= 95) list.push({ icon: 'checkmark-circle', text: 'Blood oxygen is healthy and within normal range.', color: CoachColors.accent });
-    else if (data.bloodOxygen !== null && data.bloodOxygen < 95) list.push({ icon: 'warning', text: 'Blood oxygen is below normal. Monitor closely.', color: CoachColors.warning });
-    if (hasStepData && data.stepsToday >= 3000 && data.stepsToday < 8000) list.push({ icon: 'thumbs-up', text: 'Decent activity. A little more and you\'ll hit your goal!', color: CoachColors.textSecondary });
-    return list.slice(0, 3);
-  }, [data, hasStepData]);
-
-  // Last synced text
-  const syncedText = data.lastSynced
-    ? `Synced ${formatTimeSince(data.lastSynced)}`
-    : 'Not synced';
-
-  // ─── Render ─────────────────────────────────────────────────────
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Back button */}
-      <TouchableOpacity hitSlop={{ top: 2, bottom: 2 }} style={styles.backBtn} onPress={() => router.push(ClientRoute.more)} activeOpacity={0.6}>
-        <Ionicons name="chevron-back" size={31} color={CoachColors.textPrimary} />
-      </TouchableOpacity>
-
+    <View style={st.container}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 130 }]}
+        contentContainerStyle={[st.scroll, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 130 }]}
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={CoachColors.accent} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
       >
-        {/* ═══ HEADER ═══ */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.headerTitleRow}>
-              <Ionicons name="heart" size={27} color={CoachColors.accent} />
-              <Text style={styles.headerTitle}>Health insights</Text>
-            </View>
-            <Text style={styles.headerSubtitle}>
-              {Platform.OS === 'ios' ? 'Powered by Apple Health' : 'Powered by Health Connect'}
-            </Text>
-          </View>
-          <View style={styles.syncBadge}>
-            <View style={[styles.syncDot, { backgroundColor: isConnected ? CoachColors.accent : CoachColors.textMuted }]} />
-            <Text style={styles.syncText}>{syncedText}</Text>
+        <View style={st.header}>
+          <Pressable style={st.backBtn} onPress={() => goBackOr(router, ClientRoute.myProgress)} accessibilityRole="button" accessibilityLabel="Back to progress">
+            <Ionicons name="chevron-back" size={22} color={C.textPrimary} />
+          </Pressable>
+          <View style={{ flex: 1 }}>
+            <Text style={st.kicker}>{platform}{data?.lastSynced ? ` · synced ${timeSince(new Date(data.lastSynced))}` : isConnected ? ' · connected' : ''}</Text>
+            <Text style={st.title}>Health</Text>
           </View>
         </View>
 
-        {/* ═══ NOT CONNECTED: the ask, and nothing that looks like data ═══ */}
-        {notConnected && (
-          <View style={styles.connectCard}>
-            <View style={styles.connectIconWrap}>
-              <Ionicons name="fitness" size={31} color={CoachColors.accent} />
-            </View>
-            <Text style={styles.connectTitle}>Connect {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'}</Text>
-            <Text style={styles.connectDesc}>
-              {Platform.OS === 'ios' ? 'Apple' : 'Android'} will ask which categories FitLink may read. Once connected, this screen shows your steps, heart rate, calories, blood oxygen, blood pressure and weight, read from your phone. Nothing is shown until then.
-            </Text>
-            <TouchableOpacity style={[styles.connectBtn, isLoading && { opacity: 0.6 }]} onPress={() => { connectHealth(); }} disabled={isLoading} activeOpacity={0.8} accessibilityLabel={`Connect to ${Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'}`} accessibilityRole="button">
-              <Ionicons name="link" size={20} color={CoachColors.onAccent} />
-              <Text style={styles.connectBtnText}>{isLoading ? 'Connecting…' : 'Connect health'}</Text>
-            </TouchableOpacity>
+        {!isConnected ? (
+          <View style={st.card}>
+            <View style={st.iconWrap}><Ionicons name="heart" size={26} color={C.accent} /></View>
+            <Text style={st.connectTitle}>Connect {platform}</Text>
+            <Text style={st.body}>{Platform.OS === 'ios' ? 'Apple' : 'Android'} will ask which categories FitLink may read. Once connected, this screen shows your steps, sleep, heart rate, blood oxygen and weight, read from your phone. Nothing is shown until then.</Text>
+            <Pressable style={[st.primary, isLoading && { opacity: 0.6 }]} onPress={() => healthCtx?.connectHealth?.()} disabled={isLoading} accessibilityRole="button" accessibilityLabel={`Connect ${platform}`}>
+              {isLoading ? <ActivityIndicator color={C.onAccent} /> : <Text style={st.primaryText}>Connect {platform}</Text>}
+            </Pressable>
           </View>
-        )}
-        {awaitingFirstRead && (
-          <View style={styles.demoBanner}>
-            <Ionicons name="time-outline" size={16} color={CoachColors.textMuted} />
-            <Text style={styles.demoBannerText}>Connected. Reading from {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'}… pull down to refresh.</Text>
+        ) : empty ? (
+          <View style={st.card}>
+            <Text style={st.connectTitle}>Connected, but {platform} returned no data</Text>
+            <Text style={st.body}>{Platform.OS === 'ios' ? 'iOS asks once. If the categories were not allowed then, turn them on in the Health app → your profile → Apps → FitLink.' : 'Allow FitLink in Health Connect → App permissions, and check that your phone or watch is recording.'}</Text>
+            <Pressable style={st.primary} onPress={openHealthSettings} accessibilityRole="button" accessibilityLabel={Platform.OS === 'ios' ? 'Open the Health app' : 'Open settings'}>
+              <Text style={st.primaryText}>{Platform.OS === 'ios' ? 'Open the Health app' : 'Open settings'}</Text>
+            </Pressable>
           </View>
-        )}
-        {isConnected && healthCtx?.healthData && countMetrics(data) === 0 && (
-          <View style={styles.demoBanner}>
-            <Ionicons name="information-circle-outline" size={16} color={CoachColors.textMuted} />
-            <Text style={styles.demoBannerText}>Connected, but {Platform.OS === 'ios' ? 'Apple Health' : 'Health Connect'} returned no data. iOS only asks once: if you did not allow the categories then, turn them on in the Health app → your profile → Apps → FitLink.</Text>
-          </View>
-        )}
-        {isConnected && healthCtx?.healthData && countMetrics(data) === 0 && (
-          <TouchableOpacity
-            style={[styles.connectBtn, { alignSelf: 'flex-start', marginBottom: 16 }]}
-            onPress={() => openHealthSettings()}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel={Platform.OS === 'ios' ? 'Open the Health app' : 'Open settings'}
-          >
-            <Ionicons name="open-outline" size={18} color={CoachColors.onAccent} />
-            <Text style={styles.connectBtnText}>{Platform.OS === 'ios' ? 'Open the Health app' : 'Open settings'}</Text>
-          </TouchableOpacity>
-        )}
-
-        {isConnected && (<>
-        {/* ═══ TODAY'S ACTIVITY ═══ */}
-        <Text style={styles.sectionTitle}>Today's activity</Text>
-        <View style={styles.activityCard}>
-          <View style={styles.activityInner}>
-            {/* Progress Ring */}
-            <View style={styles.ringContainer}>
-              <Svg width={RING_SIZE} height={RING_SIZE} style={styles.ringSvg}>
-                {/* Background circle */}
-                <SvgCircle
-                  cx={RING_SIZE / 2}
-                  cy={RING_SIZE / 2}
-                  r={RING_RADIUS}
-                  stroke={CoachColors.borderMuted}
-                  strokeWidth={RING_STROKE}
-                  fill="none"
-                />
-                {/* Progress circle */}
-                <SvgCircle
-                  cx={RING_SIZE / 2}
-                  cy={RING_SIZE / 2}
-                  r={RING_RADIUS}
-                  stroke={CoachColors.accent}
-                  strokeWidth={RING_STROKE}
-                  fill="none"
-                  strokeDasharray={`${RING_CIRCUMFERENCE}`}
-                  strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round"
-                  transform={`rotate(-90, ${RING_SIZE / 2}, ${RING_SIZE / 2})`}
-                />
-              </Svg>
-              {/* Center label */}
-              <View style={styles.ringCenter}>
-                {/* Dynamic Type: this sits inside the fixed-diameter progress
-                    ring, so the numeral must shrink rather than wrap/clip. */}
-                <Text style={styles.ringStepCount} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{data.stepsToday.toLocaleString()}</Text>
-                <Text style={styles.ringStepLabel}>steps</Text>
-                <Text style={styles.ringGoalText}>{`/ ${STEP_GOAL.toLocaleString()} goal`}</Text>
-              </View>
-            </View>
-
-            {/* Mini stat cards */}
-            <View style={styles.miniStatsRow}>
-              <View style={styles.miniStatCard}>
-                <View style={[styles.miniStatIcon, { backgroundColor: CoachColors.accentSoft }]}>
-                  <Ionicons name="flame" size={18} color={CoachColors.accent} />
-                </View>
-                <Text style={styles.miniStatValue}>{data.activeCaloriesToday}</Text>
-                <Text style={styles.miniStatLabel}>Active cal</Text>
-              </View>
-              <View style={styles.miniStatCard}>
-                <View style={[styles.miniStatIcon, { backgroundColor: CoachColors.accentSoft }]}>
-                  <Ionicons name="trending-up" size={18} color={CoachColors.accent} />
-                </View>
-                <Text style={styles.miniStatValue}>{data.totalCaloriesToday.toLocaleString()}</Text>
-                <Text style={styles.miniStatLabel}>Total cal</Text>
-              </View>
-              <View style={styles.miniStatCard}>
-                <View style={[styles.miniStatIcon, { backgroundColor: CoachColors.accentSoft }]}>
-                  <Ionicons name="walk" size={18} color={CoachColors.accent} />
-                </View>
-                <Text style={styles.miniStatValue}>{distanceKm}</Text>
-                <Text style={styles.miniStatLabel}>Est. km</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* ═══ HEART RATE MONITOR ═══ */}
-        <Text style={styles.sectionTitle}>Heart rate</Text>
-        <View style={styles.hrCard}>
-          <View style={styles.hrTopRow}>
-            <View style={styles.hrMainDisplay}>
-              <View style={styles.hrBpmRow}>
-                <Animated.View style={[styles.pulseDot, { opacity: pulseAnim, backgroundColor: CoachColors.accent }]} />
-                {/* Tight single-line numeral in a row with the dot and unit. */}
-                <Text style={styles.hrBpmNumber} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{data.heartRateLatest ?? '—'}</Text>
-                <Text style={styles.hrBpmUnit}>BPM</Text>
-              </View>
-              <Text style={styles.hrLatestLabel}>Latest reading</Text>
-            </View>
-            <View style={styles.hrHeartWrap}>
-              <Animated.View style={{ opacity: pulseAnim }}>
-                <Ionicons name="heart" size={49} color={CoachColors.accent} />
-              </Animated.View>
-            </View>
-          </View>
-
-          {/* HR stat pills */}
-          <View style={styles.hrPillsRow}>
-            {[
-              { label: 'Latest', value: data.heartRateLatest, color: CoachColors.accent },
-              { label: 'Avg', value: data.heartRateAvg24h, color: CoachColors.textPrimary },
-              { label: 'Min', value: data.heartRateMin24h, color: CoachColors.textPrimary },
-              { label: 'Max', value: data.heartRateMax24h, color: CoachColors.textPrimary },
-            ].map((item) => (
-              <View key={item.label} style={styles.hrPill}>
-                <Text style={[styles.hrPillValue, { color: item.color }]}>{item.value ?? '—'}</Text>
-                <Text style={styles.hrPillLabel}>{item.label}</Text>
-              </View>
-            ))}
-          </View>
-
-          {/* Resting HR */}
-          <View style={styles.restingHrCard}>
-            <View style={styles.restingHrLeft}>
-              <Text style={styles.restingHrLabel}>Resting heart rate</Text>
-              <View style={styles.restingHrValueRow}>
-                <Text style={styles.restingHrValue}>{data.restingHeartRate ?? '—'}</Text>
-                <Text style={styles.restingHrUnit}>BPM</Text>
-              </View>
-            </View>
-            <View style={[styles.restingHrBadge, { backgroundColor: CoachColors.accentSofter }]}>
-              <View style={[styles.restingHrBadgeDot, { backgroundColor: hrClass.color }]} />
-              <Text style={[styles.restingHrBadgeText, { color: hrClass.color }]}>{hrClass.label}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* ═══ WEEKLY STEPS CHART ═══ */}
-        <Text style={styles.sectionTitle}>Weekly steps</Text>
-        <View style={styles.chartCard}>
-          {/* Average line label */}
-          <View style={styles.chartAvgRow}>
-            <View style={styles.chartAvgLine} />
-            <Text style={styles.chartAvgText}>Avg: {weeklyAvg.toLocaleString()}</Text>
-          </View>
-
-          <View style={styles.chartBarsContainer}>
-            {data.stepsWeekly.map((steps, i) => {
-              const barHeight = Math.max((steps / maxWeeklySteps) * 140, 6);
-              const isToday = i === todayBarIdx;
-              const avgHeight = Math.max((weeklyAvg / maxWeeklySteps) * 140, 6);
-
-              return (
-                <View key={i} style={styles.chartBarCol} accessible={true} accessibilityLabel={`${DAY_LABELS[i]} steps: ${steps}`} accessibilityRole="text">
-                  <Text style={[styles.chartBarValue, isToday && { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold }]}>
-                    {steps >= 1000 ? `${(steps / 1000).toFixed(1)}k` : steps}
-                  </Text>
-                  <View style={styles.chartBarTrack}>
-                    {/* Average marker */}
-                    <View style={[styles.chartAvgMarker, { bottom: avgHeight }]} />
-                    {/* Bar */}
-                    <View
-                      style={[
-                        styles.chartBar,
-                        {
-                          height: barHeight,
-                          backgroundColor: isToday ? CoachColors.accent : CoachColors.borderMuted,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={[styles.chartDayLabel, isToday && { color: CoachColors.accent, fontFamily: CoachFonts.bodySemiBold }]}>
-                    {DAY_LABELS[i]}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* ═══ VITALS DASHBOARD ═══ */}
-        <Text style={styles.sectionTitle}>Vitals</Text>
-        <View style={styles.vitalsGrid}>
-          {/* SpO2 Card */}
-          <View style={[styles.vitalCard, { flex: 1 }]}>
-            <View style={styles.vitalHeader}>
-              <View style={[styles.vitalIconWrap, { backgroundColor: CoachColors.accentSoft }]}>
-                <Ionicons name="water" size={18} color={CoachColors.accent} />
-              </View>
-              <Text style={styles.vitalTitle}>SpO₂</Text>
-            </View>
-            <View style={styles.spo2Display}>
-              {/* Mini gauge */}
-              <Svg width={56} height={56}>
-                <SvgCircle
-                  cx={28} cy={28} r={22}
-                  stroke={CoachColors.borderMuted}
-                  strokeWidth={5}
-                  fill="none"
-                />
-                <SvgCircle
-                  cx={28} cy={28} r={22}
-                  stroke={CoachColors.accent}
-                  strokeWidth={5}
-                  fill="none"
-                  strokeDasharray={`${2 * Math.PI * 22}`}
-                  strokeDashoffset={2 * Math.PI * 22 * (1 - (data.bloodOxygen ?? 0) / 100)}
-                  strokeLinecap="round"
-                  transform="rotate(-90, 28, 28)"
-                />
-              </Svg>
-              <View style={styles.spo2TextWrap}>
-                <Text style={[styles.vitalBigValue, { color: CoachColors.textPrimary }]}>{data.bloodOxygen ?? '—'}</Text>
-                <Text style={styles.vitalBigUnit}>%</Text>
-              </View>
-            </View>
-            <Text style={styles.vitalSubtext}>Blood oxygen</Text>
-          </View>
-
-          {/* Blood Pressure Card */}
-          <View style={[styles.vitalCard, { flex: 1 }]}>
-            <View style={styles.vitalHeader}>
-              <View style={[styles.vitalIconWrap, { backgroundColor: CoachColors.accentSoft }]}>
-                <Ionicons name="pulse" size={18} color={CoachColors.accent} />
-              </View>
-              <Text style={styles.vitalTitle}>BP</Text>
-            </View>
-            <View style={styles.bpDisplay}>
-              <Text style={[styles.bpSystolic, { color: CoachColors.textPrimary }]}>
-                {data.bloodPressureSystolic ?? '—'}
-              </Text>
-              <Text style={styles.bpSlash}>/</Text>
-              <Text style={styles.bpDiastolic}>{data.bloodPressureDiastolic ?? '—'}</Text>
-            </View>
-            <Text style={styles.vitalSubtext}>mmHg</Text>
-          </View>
-        </View>
-
-        {/* Weight Card */}
-        <View style={styles.weightCard}>
-          <View style={styles.weightLeft}>
-            <View style={[styles.vitalIconWrap, { backgroundColor: CoachColors.accentSoft }]}>
-              <Ionicons name="scale" size={18} color={CoachColors.accent} />
-            </View>
-            <View style={styles.weightTextCol}>
-              <Text style={styles.weightTitle}>Weight</Text>
-              <Text style={styles.weightSub}>Last recorded</Text>
-            </View>
-          </View>
-          <View style={styles.weightRight}>
-            <Text style={styles.weightValue}>{data.latestWeight ?? '—'}</Text>
-            <Text style={styles.weightUnit}>lbs</Text>
-          </View>
-        </View>
-
-        {/* ═══ SMART INSIGHTS ═══ */}
-        {insights.length > 0 && (
+        ) : (
           <>
-            <Text style={styles.sectionTitle}>Smart insights</Text>
-            {insights.map((insight, i) => (
-              <View key={i} style={styles.insightCard}>
-                <View style={styles.insightInner}>
-                  <Ionicons name={insight.icon as any} size={25} color={insight.color} />
-                  <View style={styles.insightTextWrap}>
-                    <Text style={styles.insightText}>{insight.text}</Text>
+            {/* Steps */}
+            {(data?.stepsToday > 0 || (history && Object.keys(history.dailySteps).length > 0)) ? (
+              <View style={st.card}>
+                <Text style={st.big}>{(data?.stepsToday ?? history?.dailySteps?.[localDayString(now)] ?? 0).toLocaleString()} <Text style={st.bigUnit}>steps today</Text></Text>
+                <Text style={st.meta}>{stepsAvg14 != null ? `14-day average ${stepsAvg14.toLocaleString()} · ` : ''}goal {STEP_GOAL.toLocaleString()} on rest days</Text>
+                {history && (
+                  <View style={st.bars} accessible accessibilityLabel={`Steps over 14 days${stepsAvg14 != null ? `, average ${stepsAvg14}` : ''}`}>
+                    {d14.map((d, i) => {
+                      const v = history.dailySteps[d] ?? 0;
+                      const max = Math.max(STEP_GOAL, ...d14.map((x) => history.dailySteps[x] ?? 0));
+                      const isToday = i === d14.length - 1;
+                      return <View key={d} style={[st.bar, { height: Math.max(3, Math.round((v / max) * 70)), backgroundColor: isToday ? C.accent : v >= STEP_GOAL ? 'rgba(198,242,78,0.45)' : C.border }]} />;
+                    })}
                   </View>
-                  <View style={[styles.insightAccent, { backgroundColor: insight.color }]} />
+                )}
+                <View style={st.rowBetween}><Text style={st.tiny}>{new Date(d14[0] + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</Text><Text style={st.tiny}>lime = over {STEP_GOAL.toLocaleString()}</Text><Text style={st.tiny}>today</Text></View>
+              </View>
+            ) : <Sentence text={`No steps in ${platform} yet. Carry your phone or wear your watch and they show here.`} />}
+
+            {/* Heart */}
+            {(data?.heartRateLatest != null || rhrNow != null) ? (
+              <View style={st.twoUp}>
+                <View style={st.statCard}>
+                  <Text style={st.kicker}>Heart rate</Text>
+                  <Text style={st.big}>{data?.heartRateLatest ?? '—'} <Text style={st.bigUnit}>bpm</Text></Text>
+                  <Text style={st.meta}>{data?.heartRateMin24h != null && data?.heartRateMax24h != null ? `24 h ${data.heartRateMin24h}–${data.heartRateMax24h}` : 'latest reading'}</Text>
+                </View>
+                <View style={st.statCard}>
+                  <Text style={st.kicker}>Resting</Text>
+                  <Text style={st.big}>{rhrNow ?? '—'} <Text style={st.bigUnit}>bpm</Text></Text>
+                  <Text style={[st.meta, rhrFirst != null && rhrNow != null && rhrNow < rhrFirst ? { color: C.accent } : null]}>{rhrFirst != null && rhrNow != null && rhrNow !== rhrFirst ? `${rhrNow - rhrFirst > 0 ? '+' : '−'}${Math.abs(rhrNow - rhrFirst)} over four weeks` : 'from your watch'}</Text>
                 </View>
               </View>
-            ))}
+            ) : null}
+
+            {/* Sleep */}
+            {history && Object.keys(history.sleepMinutes).length > 0 ? (
+              <View style={st.card}>
+                <Text style={st.big}>{sleepLast != null ? formatHours(sleepLast) : sleepAvg7 != null ? formatHours(sleepAvg7) : ''} <Text style={st.bigUnit}>{sleepLast != null ? 'last night' : 'average'}</Text></Text>
+                <Text style={st.meta}>{sleepAvg7 != null ? `7-night average ${formatHours(sleepAvg7)}` : 'fewer than seven nights recorded'}{sleepAvg7 != null && sleepAvg7 < SLEEP_GOAL_MIN ? ' · under the 7-hour line' : ''}</Text>
+                <View style={[st.bars, { height: 56 }]} accessible accessibilityLabel="Sleep over seven nights">
+                  {d7.map((d, i) => {
+                    const v = history.sleepMinutes[d];
+                    const h = v ? Math.max(3, Math.round((Math.min(v, 600) / 600) * 56)) : 3;
+                    const isLast = i === d7.length - 1;
+                    return <View key={d} style={[st.bar, { height: h, backgroundColor: !v ? C.borderMuted : isLast ? C.accent : v < 360 ? C.warning : C.border }]} />;
+                  })}
+                </View>
+                <View style={st.legend}><Legend color={C.warning} text="under 6 h" /><Legend color={C.accent} text="last night" /></View>
+              </View>
+            ) : isConnected ? <Sentence text={`No sleep in ${platform} yet. A watch worn overnight writes it, and the sleep habit fills itself from it.`} /> : null}
+
+            {/* Vitals: only what exists */}
+            <View style={st.twoUp}>
+              {data?.bloodOxygen != null ? (
+                <View style={st.statCard}><Text style={st.kicker}>Blood oxygen</Text><Text style={st.big}>{data.bloodOxygen}<Text style={st.bigUnit}>%</Text></Text><Text style={st.meta}>latest</Text></View>
+              ) : null}
+              {(data?.latestWeight != null || (history && history.weights.length > 0)) ? (
+                <View style={st.statCard}><Text style={st.kicker}>Weight</Text><Text style={st.big}>{data?.latestWeight ?? history?.weights[history.weights.length - 1]?.lbs}</Text><Text style={st.meta}>{unitLabel(unit)}{history && history.weights.length > 0 ? ` · ${new Date(history.weights[history.weights.length - 1].date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long' })}` : ''}</Text></View>
+              ) : null}
+            </View>
+            {data?.bloodPressureSystolic != null && data?.bloodPressureDiastolic != null ? (
+              <View style={st.statCard}><Text style={st.kicker}>Blood pressure</Text><Text style={st.big}>{data.bloodPressureSystolic}/{data.bloodPressureDiastolic} <Text style={st.bigUnit}>mmHg</Text></Text></View>
+            ) : (
+              <Sentence text={`No blood pressure in ${platform} yet. A cuff that writes to it will show here.`} />
+            )}
+
+            {solo && read ? (
+              <View style={st.cornerCard}>
+                <View style={st.cornerHead}><View style={[st.avatar, { backgroundColor: CHARACTER_COLOR[corner.key] }]} /><Text style={st.cornerKicker}>In your plan</Text></View>
+                <Text style={st.cornerText}>{read.body}</Text>
+              </View>
+            ) : null}
+
+            <View style={st.rowBetween}>
+              <Text style={[st.meta, { flex: 1 }]}>Read only. Change what FitLink may read in {Platform.OS === 'ios' ? 'the Health app' : 'Health Connect'}.</Text>
+              <Pressable onPress={openHealthSettings} hitSlop={8} accessibilityRole="button" accessibilityLabel={Platform.OS === 'ios' ? 'Open the Health app' : 'Open settings'}><Text style={st.link}>{Platform.OS === 'ios' ? 'Open Health' : 'Open settings'}</Text></Pressable>
+            </View>
           </>
         )}
-        </>)}
-
-        {/* No bottom spacer here — the ScrollView's own contentContainerStyle
-            already pads insets.bottom + 130, which clears the floating tab bar.
-            The old fixed 120 was sized for a tab bar that no longer exists and
-            stacked on top of that, leaving a large dead gap. */}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────
-function formatTimeSince(date: Date): string {
-  const now = new Date();
-  const diff = Math.floor((now.getTime() - date.getTime()) / 1000);
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-  return `${Math.floor(diff / 86400)}d ago`;
+function Sentence({ text }: { text: string }) {
+  return <View style={st.sentence}><Text style={st.sentenceText}>{text}</Text></View>;
+}
+function Legend({ color, text }: { color: string; text: string }) {
+  return <View style={st.legendItem}><View style={[st.legendSwatch, { backgroundColor: color }]} /><Text style={st.tiny}>{text}</Text></View>;
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: CoachColors.bg,
-  },
-  backBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    alignSelf: 'flex-start',
-  },
-  scrollContent: {
-    padding: Spacing.lg,
-  },
-
-  // ─── Header ───────────────────────────────
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: Spacing.lg,
-  },
-  headerLeft: {
-    flex: 1,
-  },
-  headerTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  headerTitle: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 36,
-    color: CoachColors.textPrimary,
-    letterSpacing: -0.5,
-  },
-  headerSubtitle: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    color: CoachColors.textMuted,
-    marginTop: 4,
-    marginLeft: 32,
-  },
-  syncBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: CoachColors.surface,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    borderCurve: 'continuous',
-  },
-  syncDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    borderCurve: 'continuous',
-  },
-  syncText: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    color: CoachColors.textMuted,
-  },
-
-  // ─── Demo Banner ──────────────────────────
-  demoBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: CoachColors.surface,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
-    borderRadius: Radius.sm,
-    borderCurve: 'continuous',
-    marginBottom: Spacing.lg,
-  },
-  demoBannerText: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    color: CoachColors.textMuted,
-  },
-
-  // ─── Connection Banner ────────────────────
-  connectCard: {
-    borderRadius: Radius.xl,
-    borderCurve: 'continuous',
-    padding: Spacing.xl,
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-    backgroundColor: CoachColors.surface,
-  },
-  connectIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    borderCurve: 'continuous',
-    backgroundColor: CoachColors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  connectTitle: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 24.5,
-    color: CoachColors.textPrimary,
-    marginBottom: Spacing.xs,
-  },
-  connectDesc: {
-    fontFamily: CoachFonts.body,
-    fontSize: 17,
-    color: CoachColors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: Spacing.lg,
-    paddingHorizontal: Spacing.base,
-  },
-  connectBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: CoachColors.accent,
-    paddingHorizontal: Spacing['2xl'],
-    paddingVertical: Spacing.md,
-    borderRadius: Radius.md,
-    borderCurve: 'continuous',
-  },
-  connectBtnText: {
-    fontFamily: CoachFonts.bodyBold,
-    fontSize: 19,
-    color: CoachColors.onAccent,
-  },
-
-  // ─── Section Title ────────────────────────
-  sectionTitle: {
-    fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 20,
-    color: CoachColors.textPrimary,
-    marginBottom: Spacing.md,
-    marginTop: Spacing.sm,
-  },
-
-  // ─── Activity Card ────────────────────────
-  activityCard: {
-    backgroundColor: CoachColors.surface,
-    borderRadius: Radius.xl,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-    overflow: 'hidden',
-  },
-  activityInner: {
-    padding: Spacing.xl,
-    alignItems: 'center',
-  },
-
-  // Ring
-  ringContainer: {
-    width: RING_SIZE,
-    height: RING_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.xl,
-  },
-  ringSvg: {
-    position: 'absolute',
-  },
-  ringCenter: {
-    alignItems: 'center',
-  },
-  ringStepCount: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 40.5,
-    color: CoachColors.textPrimary,
-    letterSpacing: -1,
-  },
-  ringStepLabel: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 17,
-    color: CoachColors.textMuted,
-    marginTop: -2,
-  },
-  ringGoalText: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    color: CoachColors.textMuted,
-    marginTop: 2,
-  },
-
-  // Mini stats
-  miniStatsRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    width: '100%',
-  },
-  miniStatCard: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: CoachColors.accentSofter,
-    borderRadius: Radius.lg,
-    borderCurve: 'continuous',
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.xs,
-  },
-  miniStatIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-  },
-  miniStatValue: {
-    fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 19,
-    color: CoachColors.textPrimary,
-  },
-  miniStatLabel: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    // textSecondary, not textMuted: this label sits on an accentSofter tint,
-    // where textMuted only reaches 4.46:1 (needs 4.5:1 at 13px).
-    color: CoachColors.textSecondary,
-    marginTop: 2,
-  },
-
-  // ─── Heart Rate Card ──────────────────────
-  hrCard: {
-    backgroundColor: CoachColors.surface,
-    borderRadius: Radius.xl,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-    padding: Spacing.xl,
-  },
-  hrTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.lg,
-  },
-  hrMainDisplay: {},
-  hrBpmRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  pulseDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    borderCurve: 'continuous',
-  },
-  hrBpmNumber: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 49.5,
-    color: CoachColors.textPrimary,
-    letterSpacing: -1,
-  },
-  hrBpmUnit: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 20,
-    color: CoachColors.textMuted,
-    marginTop: 12,
-  },
-  hrLatestLabel: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    color: CoachColors.textMuted,
-    marginTop: 2,
-  },
-  hrHeartWrap: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderCurve: 'continuous',
-    backgroundColor: CoachColors.accentSoft,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  // HR pills
-  hrPillsRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  hrPill: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: CoachColors.accentSofter,
-    borderRadius: Radius.md,
-    borderCurve: 'continuous',
-    paddingVertical: Spacing.sm,
-  },
-  hrPillValue: {
-    fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 19,
-  },
-  hrPillLabel: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    // On accentSofter — see miniStatLabel.
-    color: CoachColors.textSecondary,
-    marginTop: 2,
-  },
-
-  // Resting HR
-  restingHrCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: CoachColors.accentSofter,
-    borderRadius: Radius.lg,
-    borderCurve: 'continuous',
-    padding: Spacing.base,
-  },
-  restingHrLeft: {},
-  restingHrLabel: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    // On accentSofter — see miniStatLabel.
-    color: CoachColors.textSecondary,
-    marginBottom: 2,
-  },
-  restingHrValueRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-  },
-  restingHrValue: {
-    fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 29,
-    color: CoachColors.textPrimary,
-  },
-  restingHrUnit: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    // On accentSofter — see miniStatLabel.
-    color: CoachColors.textSecondary,
-  },
-  restingHrBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 6,
-    borderRadius: Radius.full,
-    borderCurve: 'continuous',
-  },
-  restingHrBadgeDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    borderCurve: 'continuous',
-  },
-  restingHrBadgeText: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 14.5,
-  },
-
-  // ─── Weekly Chart ─────────────────────────
-  chartCard: {
-    backgroundColor: CoachColors.surface,
-    borderRadius: Radius.xl,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-    padding: Spacing.xl,
-  },
-  chartAvgRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: Spacing.md,
-  },
-  chartAvgLine: {
-    width: 20,
-    height: 2,
-    backgroundColor: CoachColors.textMuted,
-    borderRadius: 1,
-    borderCurve: 'continuous',
-    opacity: 0.5,
-  },
-  chartAvgText: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    color: CoachColors.textMuted,
-  },
-  chartBarsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end',
-    height: 190,
-  },
-  chartBarCol: {
-    flex: 1,
-    alignItems: 'center',
-    gap: 6,
-  },
-  chartBarValue: {
-    fontFamily: CoachFonts.body,
-    fontSize: 10,
-    color: CoachColors.textMuted,
-  },
-  chartBarTrack: {
-    width: '60%',
-    maxWidth: 32,
-    height: 140,
-    justifyContent: 'flex-end',
-    position: 'relative',
-  },
-  chartAvgMarker: {
-    position: 'absolute',
-    left: -4,
-    right: -4,
-    height: 1.5,
-    backgroundColor: CoachColors.textMuted,
-    opacity: 0.3,
-    borderRadius: 1,
-    borderCurve: 'continuous',
-  },
-  chartBar: {
-    width: '100%',
-    borderRadius: 6,
-    borderCurve: 'continuous',
-    minHeight: 6,
-  },
-  chartDayLabel: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    color: CoachColors.textMuted,
-  },
-
-  // ─── Vitals ───────────────────────────────
-  vitalsGrid: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  vitalCard: {
-    backgroundColor: CoachColors.surface,
-    borderRadius: Radius.xl,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-    padding: Spacing.base,
-    alignItems: 'center',
-  },
-  vitalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    alignSelf: 'flex-start',
-    marginBottom: Spacing.md,
-  },
-  vitalIconWrap: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderCurve: 'continuous',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vitalTitle: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 17,
-    color: CoachColors.textSecondary,
-  },
-  spo2Display: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.sm,
-    position: 'relative',
-  },
-  spo2TextWrap: {
-    position: 'absolute',
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  vitalBigValue: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 29,
-  },
-  vitalBigUnit: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    color: CoachColors.textMuted,
-    marginLeft: 1,
-  },
-  vitalSubtext: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    color: CoachColors.textMuted,
-  },
-  bpDisplay: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.sm,
-  },
-  bpSystolic: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 31.5,
-  },
-  bpSlash: {
-    fontFamily: CoachFonts.body,
-    fontSize: 29,
-    color: CoachColors.textMuted,
-    marginHorizontal: 2,
-  },
-  bpDiastolic: {
-    fontFamily: CoachFonts.headingSemiBold,
-    fontSize: 29,
-    color: CoachColors.textSecondary,
-  },
-
-  // Weight card
-  weightCard: {
-    backgroundColor: CoachColors.surface,
-    borderRadius: Radius.xl,
-    borderCurve: 'continuous',
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-    padding: Spacing.base,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: Spacing.sm,
-  },
-  weightLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  weightTextCol: {},
-  weightTitle: {
-    fontFamily: CoachFonts.bodySemiBold,
-    fontSize: 19,
-    color: CoachColors.textPrimary,
-  },
-  weightSub: {
-    fontFamily: CoachFonts.body,
-    fontSize: 14.5,
-    color: CoachColors.textMuted,
-    marginTop: 1,
-  },
-  weightRight: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-  },
-  weightValue: {
-    fontFamily: CoachFonts.headingBold,
-    fontSize: 36,
-    color: CoachColors.textPrimary,
-  },
-  weightUnit: {
-    fontFamily: CoachFonts.body,
-    fontSize: 17,
-    color: CoachColors.textMuted,
-  },
-
-  // ─── Insights ─────────────────────────────
-  insightCard: {
-    borderRadius: Radius.xl,
-    borderCurve: 'continuous',
-    overflow: 'hidden',
-    marginBottom: Spacing.sm,
-    backgroundColor: CoachColors.surface,
-    borderWidth: 1,
-    borderColor: CoachColors.border,
-  },
-  insightInner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: Spacing.base,
-    paddingVertical: Spacing.md,
-    gap: Spacing.md,
-  },
-  insightTextWrap: {
-    flex: 1,
-  },
-  insightText: {
-    fontFamily: CoachFonts.body,
-    fontSize: 17,
-    color: CoachColors.textPrimary,
-    lineHeight: 22.5,
-  },
-  insightAccent: {
-    width: 3,
-    height: '100%',
-    minHeight: 32,
-    borderRadius: 2,
-    borderCurve: 'continuous',
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-  },
+const st = StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
+  scroll: { paddingHorizontal: 20, gap: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 6 },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, alignItems: 'center', justifyContent: 'center' },
+  kicker: { fontFamily: F.bodyBold, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', color: C.textFaint },
+  title: { fontFamily: F.headingBold, fontSize: 24, color: C.textPrimary, marginTop: 2 },
+  card: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 18, borderCurve: 'continuous', padding: 16, gap: 10 },
+  iconWrap: { width: 48, height: 48, borderRadius: 24, backgroundColor: C.accentSoft, alignItems: 'center', justifyContent: 'center' },
+  connectTitle: { fontFamily: F.headingBold, fontSize: 19, color: C.textPrimary },
+  body: { fontFamily: F.body, fontSize: 14, lineHeight: 20, color: C.textSecondary },
+  primary: { height: 50, borderRadius: 999, borderCurve: 'continuous', backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  primaryText: { fontFamily: F.bodyBold, fontSize: 15, color: C.onAccent },
+  big: { fontFamily: F.headingBold, fontSize: 26, color: C.textPrimary },
+  bigUnit: { fontFamily: F.body, fontSize: 14, color: C.textSecondary },
+  meta: { fontFamily: F.body, fontSize: 12.5, color: C.textSecondary },
+  tiny: { fontFamily: F.body, fontSize: 10, color: C.textFaint },
+  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 4, height: 70 },
+  bar: { flex: 1, borderRadius: 3 },
+  rowBetween: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
+  twoUp: { flexDirection: 'row', gap: 10 },
+  statCard: { flex: 1, backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 14, borderCurve: 'continuous', padding: 14, gap: 4 },
+  legend: { flexDirection: 'row', gap: 14 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendSwatch: { width: 8, height: 8, borderRadius: 2 },
+  sentence: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.borderMuted, borderRadius: 14, borderCurve: 'continuous', padding: 12 },
+  sentenceText: { fontFamily: F.body, fontSize: 12.5, lineHeight: 18, color: C.textSecondary },
+  cornerCard: { backgroundColor: C.surface, borderWidth: 1, borderColor: 'rgba(198,242,78,0.35)', borderRadius: 18, borderCurve: 'continuous', padding: 14, gap: 8 },
+  cornerHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  avatar: { width: 26, height: 26, borderRadius: 13 },
+  cornerKicker: { fontFamily: F.bodyBold, fontSize: 11, letterSpacing: 1.2, textTransform: 'uppercase', color: C.accent },
+  cornerText: { fontFamily: F.body, fontSize: 14, lineHeight: 21, color: C.textPrimary },
+  link: { fontFamily: F.bodySemiBold, fontSize: 13, color: C.accent },
 });

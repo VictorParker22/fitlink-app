@@ -158,6 +158,8 @@ export default function ClientTabsLayout() {
         <Tabs.Screen name="my-sessions"       options={{ href: null }} />
         <Tabs.Screen name="find-coach"        options={{ href: null }} />
         <Tabs.Screen name="activity"          options={{ href: null }} />
+        <Tabs.Screen name="habits"            options={{ href: null }} />
+        <Tabs.Screen name="lift-detail"       options={{ href: null }} />
         <Tabs.Screen name="solo"              options={{ href: null }} />
         <Tabs.Screen name="solo-setup"        options={{ href: null }} />
       </Tabs>
